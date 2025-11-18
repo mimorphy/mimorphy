@@ -2,9 +2,12 @@
 *
 
 # 取消忽略想要的文件和文件夹
-!/projects/
+!/projects/**
 !README.md
 !LICENSE
 
 # 确保.gitignore不被忽略
 !.gitignore
+
+# 忽略特定的文件和文件夹
+**/.vscode/

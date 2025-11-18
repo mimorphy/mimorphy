@@ -1,4 +1,30 @@
 # mimorphy
-Mimorphy - The programming language with unlimited syntax and semantic abstraction capabilities. Redefine code morphology through mimetic polymorphism.
 
-Mimorphy - 具备无限语法和语义抽象能力的编程语言。通过模拟多态性重新定义代码形态学。
+## 项目愿景
+
+Mimorphy 是一个**概念性编程语言设计项目**，目前处于设计和规划阶段。
+
+## 设计目标
+
+**Mimorphy - 具备无限语法和语义抽象能力的编程语言构想。通过模拟多态性重新定义代码形态学。**
+
+*Mimorphy - The conceptual programming language with unlimited syntax and semantic abstraction capabilities. Redefining code morphology through mimetic polymorphism (envisioned).*
+
+## 项目状态
+
+⚠️ **当前状态：概念设计阶段**
+
+> 注意：这是一个**设想中的语言设计项目**，目前尚未实现任何核心功能。此仓库用于记录设计思路、讨论语言特性和探索编程语言理论的边界。
+
+> Note: This is a **conceptual language design project** that has not yet implemented any core functionality. This repository is for recording design ideas, discussing language features, and exploring the boundaries of programming language theory.
+
+## 核心构想
+
+- **模拟多态性**：允许代码在运行时改变其语法结构
+- **形态学抽象**：提供无限层次的语法和语义抽象能力
+- **自适应语法**：根据上下文动态调整语言表达方式
+- **高硬件利用**：打破传统编程专注于使用CPU或GPU的方式，而是允许将代码同时编译到CPU和GPU上
+
+## 参与讨论
+
+欢迎对编程语言设计感兴趣的朋友参与讨论，共同探索这个前沿概念！
