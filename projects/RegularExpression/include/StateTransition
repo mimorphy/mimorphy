@@ -1,0 +1,48 @@
+#ifndef STATE_TRANSITION
+#define STATE_TRANSITION
+
+#include "Basic"
+#include "compare"
+
+using std::strong_ordering;
+
+class state_transition;
+// 状态节点的类型，目前包括：
+// - DEFAULT (默认) 表示转移到该状态所需要匹配的字符是一个默认字符，即按原义进行匹配。
+// - EPSILON_TRANSITION (空转移) 表示转移到该状态不需要匹配任何字符。
+// - ANY (任意) 表示转移到该状态所需要匹配的字符可以是字母表中的任意一个字符。
+enum class state_transition_type
+{
+    DEFAULT, EPSILON_TRANSITION, ANY, VIRTUAL_TRANSFER
+};
+
+// 状态节点的定义，包括三个成员：
+// - transition_condition (转移条件) 转移到此状态的条件。
+// - type (类型) 此状态节点的类型，参考 state_transition_type。
+// - index_of_default_target (默认转移目标索引) 此节点默认转移到的下一个节点的索引。
+class state_transition
+{
+public:
+    state_transition() = default;
+    ~state_transition() = default;
+    state_transition(character _transition_condition_, state_transition_type _type_, sizevalue _index_of_default_target_) : transition_condition(_transition_condition_), type(_type_), index_of_default_target(_index_of_default_target_) {}
+    state_transition(const state_transition& right)
+    {
+        transition_condition = right.transition_condition;
+        type = right.type;
+        index_of_default_target = right.index_of_default_target;
+    }
+    void operator=(const state_transition& right)
+    {
+        transition_condition = right.transition_condition;
+        type = right.type;
+        index_of_default_target = right.index_of_default_target;
+    }
+    strong_ordering operator<=>(const state_transition& right) const = default;
+public:
+    character transition_condition{};
+    state_transition_type type{};
+    sizevalue index_of_default_target{};
+};
+
+#endif

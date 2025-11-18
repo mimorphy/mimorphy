@@ -1,0 +1,53 @@
+#ifndef NATURAL_NUMBER_H
+#define NATURAL_NUMBER_H 
+
+#include "Basic"
+#include "vector"
+#include "span"
+
+using std::vector;
+using std::span;
+
+class natural_number
+{
+public:
+	natural_number() : content({ 0 }) {}
+	~natural_number() = default;
+
+	natural_number(const vector<natmax>& value) noexcept;
+
+	natural_number(vector<natmax>&& value) noexcept;
+
+	natural_number(span<natmax> value) noexcept;
+
+	natural_number(const natural_number& right) noexcept;
+	natural_number(natural_number&& right) noexcept;
+
+	void operator=(span<natmax> right) noexcept;
+	void operator=(const natural_number& right) noexcept;
+	void operator=(natural_number&& right) noexcept;
+
+	bool bad() const noexcept;
+	bool empty() const noexcept { return content.empty(); }
+	void clear() noexcept { content.clear(); }
+
+	void operator+=(const natural_number& right) noexcept;
+	void operator-=(const natural_number& right);
+	void operator*=(const natural_number& right) noexcept;
+	void operator/=(const natural_number& right);
+	void operator%=(const natural_number& right);
+	natural_number operator+(const natural_number& right) const noexcept;
+	natural_number operator-(const natural_number& right) const;
+	natural_number operator*(const natural_number& right) const noexcept;
+	natural_number operator/(const natural_number& right) const;
+	natural_number operator%(const natural_number& right) const;
+	bool operator==(const natural_number& right) const noexcept;
+	bool operator<(const natural_number& right) const noexcept;
+	bool operator>(const natural_number& right) const noexcept;
+	bool operator<=(const natural_number& right) const noexcept;
+	bool operator>=(const natural_number& right) const noexcept;
+public:
+	vector<natmax> content{};
+};
+
+#endif

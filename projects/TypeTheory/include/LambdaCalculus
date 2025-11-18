@@ -1,0 +1,67 @@
+#ifndef LAMBDA_CALCULUS_H
+#define LAMBDA_CALCULUS_H
+
+#include "Basic"
+#include "vector"
+#include "set"
+#include "map"
+#include "variant"
+#include "memory"
+
+using std::vector;
+using std::set;
+using std::map;
+using std::variant;
+using std::shared_ptr;
+
+class lambda_expression;
+struct bound_variable
+{
+	str name;
+	bound_variable(str_view n) : name(n) {}
+};
+struct free_variable
+{
+	str name;
+	free_variable(str_view n) : name(n) {}
+};
+struct lambda_subexpression
+{
+	shared_ptr<lambda_expression> expr;
+	lambda_subexpression(shared_ptr<lambda_expression> e) : expr(e) {}
+};
+using lambda_element = variant<bound_variable, free_variable, lambda_subexpression>;
+
+class lambda_expression
+{
+public:
+	lambda_expression() = default;
+	~lambda_expression() = default;
+
+	lambda_expression(str_view expression);
+	lambda_expression(const lambda_expression& right) = default;
+	lambda_expression& operator=(const lambda_expression& right) = default;
+
+	str get() const;
+	void applicate();
+	void applicate(const lambda_expression& right);
+	void applicate(lambda_expression&& right);
+	void applicate(map<str, lambda_expression>& definitions);
+	void applicate(const lambda_expression& right, map<str, lambda_expression>& definitions);
+	void applicate(lambda_expression&& right, map<str, lambda_expression>& definitions);
+	void expand(map<str, lambda_expression>& definitions);
+
+	bool operator==(const lambda_expression& right) const;
+private:
+	void process_free_variable_in_application(vector<lambda_element>& elements, sizevalue& index_of_first_bound_variable, sizevalue& index);
+	void process_subexpression_in_application(vector<lambda_element>& elements, sizevalue& index_of_first_bound_variable, sizevalue& index);
+	void process_nested_expression_in_application(vector<lambda_element>& elements, sizevalue& index_of_first_bound_variable, sizevalue& index);
+	void applicate_between_subexpression(lambda_element& left, lambda_element& right);
+	void replace(map<str, lambda_expression>& definitions, set<str>& already_appeared_definitions);
+	str get_element_string(const lambda_element& element) const;
+	bool start_is_bound(lambda_element& element);
+
+	vector<lambda_element> elements{};
+};
+
+#endif

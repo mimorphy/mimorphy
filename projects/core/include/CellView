@@ -1,0 +1,71 @@
+#ifndef CELL_H
+#define CELL_H 
+
+#include "Basic"
+#include "Cell"
+#include "vector"
+#include "span"
+#include "stdexcept"
+
+using std::vector;
+using std::span;
+using std::weak_ordering;
+using std::invalid_argument;
+
+class cell_view
+{
+public:
+	cell_view() = default;
+	~cell_view() = default;
+
+	cell_view(const vector<natmax>& upper_bound) noexcept;
+
+	cell_view(vector<natmax>&& upper_bound) noexcept;
+
+	template<typename T>
+	cell_view(T&& upper_bound, T&& value)
+	{
+		span<natmax> upper_bound_span(const_cast<natmax*>(upper_bound.data()), find_if(upper_bound.rbegin(), upper_bound.rend(), [](natmax x) { return x != 0; }).base() - upper_bound.begin());
+		span<natmax> value_span(const_cast<natmax*>(value.data()), find_if(value.rbegin(), value.rend(), [](natmax x) { return x != 0; }).base() - value.begin());
+		if (upper_bound_span.size() < value_span.size()) {
+			throw invalid_argument("上限不足以容纳输入值");
+		}
+		_value_ = value_span;
+        _number_of_states_ = upper_bound_span;
+		if (bad()) {
+			throw invalid_argument("上限不足以容纳输入值");
+		}
+	}
+
+	cell_view(const cell_view& right) noexcept;
+	cell_view(cell_view&& right) noexcept;
+
+	void operator=(span<natmax> right) noexcept;
+	void operator=(const cell_view& right) noexcept;
+	void operator=(cell_view&& right) noexcept;
+
+	span<natmax> value() const noexcept;
+
+	span<natmax> number_of_states() const noexcept;
+
+	bool bad() const noexcept;
+	bool empty() const noexcept { return _value_.empty(); }
+
+	void operator+=(const cell_view& right) noexcept;
+	void operator-=(const cell_view& right) noexcept;
+	void operator*=(const cell_view& right) noexcept;
+	void operator/=(const cell_view& right);
+	void operator%=(const cell_view& right);
+	bool operator==(const cell_view& right) const noexcept;
+	weak_ordering operator<=>(const cell_view& right) const noexcept;
+
+private:
+	void limit_right_value_then_increase(cell_view& left, const cell_view& right) noexcept;
+	void limit_right_value_then_decrease(cell_view& left, const cell_view& right) const noexcept;
+	void limit_right_value_then_multiply(cell_view& left, const cell_view& right) noexcept;
+public:
+	span<natmax> _value_{};
+    span<natmax> _number_of_states_{};
+};
+
+#endif

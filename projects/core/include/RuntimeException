@@ -1,0 +1,17 @@
+#ifndef RUNTIME_EXCEPTION_H
+#define RUNTIME_EXCEPTION_H 
+
+#include "Basic"
+#include "stdexcept"
+
+using std::runtime_error;
+
+static byte_array get_current_time();
+
+void runtime_assert(bool condition, byte_array information);
+
+void runtime_assert(bool condition, const char* information);
+
+void link_runtime_error(runtime_error& e, byte_array information);
+
+#endif

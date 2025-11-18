@@ -1,0 +1,57 @@
+#ifndef INTEGER_NUMBER_H
+#define INTEGER_NUMBER_H 
+
+#include "Basic"
+#include "vector"
+#include "span"
+
+using std::vector;
+using std::span;
+
+class integer_number
+{
+public:
+	integer_number() : content({ 0 }) {}
+	~integer_number() = default;
+
+	integer_number(const vector<natmax>& value) noexcept;
+
+	integer_number(vector<natmax>&& value) noexcept;
+
+	integer_number(span<natmax> value) noexcept;
+
+	integer_number(const integer_number& right) noexcept;
+	integer_number(integer_number&& right) noexcept;
+
+	void operator=(span<natmax> right) noexcept;
+	void operator=(const integer_number& right) noexcept;
+	void operator=(integer_number&& right) noexcept;
+
+	bool bad() const noexcept;
+	bool empty() const noexcept { return content.empty(); }
+	void clear() noexcept { content.clear(); }
+
+	void operator+=(const integer_number& right) noexcept;
+	void operator-=(const integer_number& right) noexcept;
+	void operator*=(const integer_number& right) noexcept;
+	void operator/=(const integer_number& right);
+	void operator%=(const integer_number& right);
+	integer_number operator+(const integer_number& right) const noexcept;
+	integer_number operator-(const integer_number& right) const noexcept;
+	integer_number operator*(const integer_number& right) const noexcept;
+	integer_number operator/(const integer_number& right) const;
+	integer_number operator%(const integer_number& right) const;
+	bool operator==(const integer_number& right) const noexcept;
+	bool operator<(const integer_number& right) const noexcept;
+	bool operator>(const integer_number& right) const noexcept;
+	bool operator<=(const integer_number& right) const noexcept;
+	bool operator>=(const integer_number& right) const noexcept;
+public:
+	vector<natmax> content{};
+};
+
+integer_number natural_to_integer(span<natmax> content) noexcept;
+
+integer_number natural_to_integer(vector<natmax> content) noexcept;
+
+#endif
