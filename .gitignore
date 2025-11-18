@@ -5,6 +5,8 @@
 !*/
 !/projects/
 !/projects/**
+!/docs/
+!/docs/**
 !README.md
 !LICENSE
 

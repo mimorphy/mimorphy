@@ -1,0 +1,1377 @@
+\documentclass[12pt,a4paper,UTF8]{ctexart}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{bookmark}
+\usepackage{amsmath, amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{stmaryrd}
+
+\lstset{
+    basicstyle=\ttfamily,
+    keywordstyle=\color{blue},
+    extendedchars=false, % 关闭扩展字符支持
+    backgroundcolor=\color{gray!5},   % 浅灰色背景
+    frame=shadowbox,                  % 带阴影的边框
+    framesep=5pt,                     % 边框内边距
+    rulesepcolor=\color{gray!30},     % 边框颜色
+    rulecolor=\color{blue!60},        % 阴影颜色
+    numbers=left,                     % 行号在左侧
+    numberstyle=\color{gray},    	  % 行号样式
+    breaklines=true,                  % 自动换行
+    captionpos=b,                     % 标题位置
+    showstringspaces=false,           % 隐藏字符串中的空格
+    tabsize=2,                        % 制表符宽度
+    keywordstyle=\color{blue},        % 关键词颜色
+    commentstyle=\color{olive},       % 注释颜色
+    stringstyle=\color{red},          % 字符串颜色
+    escapeinside=``,                  % 中文兼容设置
+	keepspaces=true
+}
+
+% 定义浅灰色变量文本命令
+\definecolor{lightgray}{gray}{0.6} % 灰度值0.7(0为黑，1为白)
+
+\newcommand{\var}[1]{\textcolor{lightgray}{\mathtt{#1}}}
+
+\newcommand{\concept}[1]{\text{引用: }\textcolor{blue}{#1}}
+
+\newcommand{\prac}[1]{\textcolor{red}{#1}}
+
+% 页眉页脚设置
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\setlength{\parindent}{0pt}
+\fancyhf{}
+\fancyhead[L]{拟态语言技术手册}
+\fancyhead[R]{\thepage}
+
+% 代码高亮设置
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green},
+    stringstyle=\color{red},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    backgroundcolor=\color[RGB]{245,245,244}
+}
+
+% 标题样式
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% 封面
+\title{拟态语言技术手册\\{\small 概念册}}
+\author{之恪提案}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty} % 取消标题页的页码
+
+\pagenumbering{Roman} % 使用大写罗马数字作为前置内容的页码
+\setcounter{page}{0} % 重置页码为1
+
+\maketitle
+\clearpage
+
+\tableofcontents
+\newpage
+
+\pagenumbering{arabic} % 切换到阿拉伯数字页码
+\setcounter{page}{1} % 重置页码为1
+
+\section{模拟任意状态数的数胞}
+
+\subsection{介绍}
+
+\qquad \qquad 在计算机中，基本上不可能有一种存储介质可以存储状态数无限大的静态数据。
+因此，计算机存储数据时，会选择一种存储方式，将上限确定的数据存储在有限大小的存储单元中。
+例如，在二进制的字长为$64$的计算机中，一次操作可以处理的数据的最大值为$18446744073709551615$，即$2^{64} - 1$。
+但是，在不同的计算机中，进制和字长可能是不同的，进而可能导致一次操作可以处理的数据的上限不同。
+为了使在不同的计算机中，存在一种方式使得对数据的操作具有结果一致性，于是数胞诞生了。
+
+\qquad 为什么数胞能保证不同的计算机对数据的操作具有结果一致性呢？
+数胞的上限一般在程序执行前被指定为一个常数，因此它所占有的存储空间是确定的。
+
+\qquad 假设计算机A一次操作可以处理的数据的上限为$9$，计算机B一次操作可以处理的数据的上限为$15$，它们的存储上限与处理时的上限一致。
+那么当计算机A计算$8+4$时，结果为$12 \bmod 10 = 2$。因为其存储上限为$9$，所以计算的结果需要保持在$0$到$9$内。超出此范围的结果需要进行模运算的处理。
+
+\qquad 当计算机B计算$8+4$时，结果为$12 \bmod 16 = 12$。因为其存储上限为15，问题来了，现在发现相同的算式在两个计算机内计算的结果不同，怎么办？
+
+\qquad 通过指定数胞的上限，可以解决这个问题。数胞的上限相当于计算机数据的存储上限，只要设定上限为定值，那么计算机A和计算机B通过执行特定的算法，可以获得相同的结果。
+这样的规定相当于，无论正在运行的计算机的存储上限是多少，数胞都无视计算机的存储上限，而是使用数胞的上限获取运算结果，从而实现了对数据的操作具有结果一致性。
+
+\qquad 具体的算法将在下文详细描述。
+
+\subsection{任意进制的长除法}
+
+\qquad 在计算机中，我们常常需要处理超出单个数胞表示范围的大数。
+虽然现代编程语言通常提供了大数运算库，但理解其底层原理——特别是如何在任意进制下进行除法运算——对于深入理解计算机算术至关重要。
+
+\qquad 长除法是一种适用于任意进制的算法，它通过迭代的方式，将复杂的除法问题分解为一系列简单的单数胞运算。
+这种方法的核心思想与我们在小学学习的十进制长除法完全相同，只是将其推广到了任意进制$\var{b}$。
+
+\subsubsection{数学原理与定义}
+
+\qquad 考虑两个自然数：被除数$\var{D}$和除数$\var{d}$，其中$\var{d} \ne 0$。我们的目标是找到商$\var{Q}$和余数$\var{R}$，使得：
+\[\var{D} = \var{Q} \times \var{d} + \var{R}, \text{其中} 0 \le \var{R} < \var{d}\]
+
+\qquad 现在，假设我们不是在十进制下，而是在$\var{b}$进制下表示这些数字($\var{b} \ge 2$)。那么$\var{D}$和$\var{d}$\\可以表示为：
+\begin{align*}
+    \var{D} &= (\var{d}_{\var{n}-1}\var{d}_{\var{n}-2}\dots\var{d}_1\var{d}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{d}_{\var{i}}\times\var{b}^{\var{i}} \\
+    \var{d} &= \text{除数在进制}\var{b}\text{的表示}
+\end{align*}
+
+\qquad 长除法的过程就是从被除数的高位开始，逐位(或逐小组)地处理，每一步计算部分被除数除以除数的结果。
+
+\subsubsection{算法步骤}
+
+\qquad 以下是任意进制$\var{b}$下长除法的通用算法步骤：
+\[\begin{bmatrix}
+    \var{R} := NC_{\infty}(D), \var{Q} := NC_{\infty}(0) \\
+    \var{i} := NC_{\infty}(0) \\
+    \begin{bmatrix}
+        \text{当}: \var{i} < \var{n} \\
+        \var{local} := \lfloor\var{R} \oslash \var{b}^{\var{n}-1-\var{i}}\rfloor \\
+        \begin{cases}
+            \var{multiple} := \var{local} \oslash \var{d} \otimes \var{d} \quad \text{如果}: \var{local} \ge \var{d} \\
+            \var{R} :=^{\ominus} \var{multiple} \otimes \var{b}^{\var{n}-1-\var{i}} \\
+            \var{Q} :=^{\oplus} \var{multiple} \otimes \var{b}^{\var{n}-1-\var{i}}
+        \end{cases}
+    \end{bmatrix}
+\end{bmatrix}\]
+执行完成后，$\var{Q}$就是长除法得到的商，$\var{R}$就是长除法得到的余数。
+
+\qquad 在算法中，由于我们使用了$NC_{\infty}$，导致此算法无法直接表示为真正可执行的算法。
+因此，在实现真正的算法时，我们需要使用数组通过线性组合多个数胞来表示$\var{D}, \var{d}, \var{R}, \var{Q},\\ \var{local}$。
+$\oslash \var{b}^{\var{n}-1-\var{i}}$相当于删除$\var{b}^{\var{n}-1-\var{i}}$个低位，将第$\var{n}-1-\var{i}$位作为个位。
+$\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n}-1-\var{i}$个$0$。
+它们都是位操作的模仿。
+
+\qquad 此算法展示了如何通过迭代和模运算，将复杂的大数除法分解为一系列简单的、可在单个数胞上完成的操作。
+这正是计算机处理超出其原生字长大数的核心思想：通过合适的算法和数据结构，用多个小单元协作完成大任务。
+
+\qquad 这个算法虽然简单，但却是理解计算机如何处理大数运算的基础。
+通过将复杂问题分解为可管理的步骤，我们能够在有限的硬件资源上实现任意精度的算术运算。
+
+\qquad \textbf{任意状态数的数胞的除法和取余可以通过任意进制的长除法模拟}。
+
+\subsection{将数胞的值限制在状态数内}
+
+\qquad 在数胞的定义中，$0 \le \var{\text{值}} < \var{\text{指定状态数}}$。
+那么对于一个超出范围$[0,\var{\text{指定状态数}})$的值，如何让该值符合要求呢？
+根据定义，如果值$\var{t} \notin [0,\var{\text{指定状态数}})$，则将值$\var{t}$映射为$\var{t} \bmod \var{\text{指定状态数}}$。
+
+具体算法如下：
+\[\begin{bmatrix}
+    \begin{cases}
+        \var{t} := \var{t} \; \mathrm{rem} \; \var{\text{指定状态数}} \quad \text{如果}: \var{t} \ge \var{\text{指定状态数}} \\
+    \end{cases} \\
+    \text{输出}: \var{t}
+\end{bmatrix}\]
+
+\qquad 当$\var{\text{指定状态数}}$超出当前计算机的存储和计算上限时，就需要使用\textbf{任意进制的长除法}来计算$\var{t}$解决问题。
+具体算法中的$\mathrm{rem}$运算就需要使用任意进制的长除法来实现。
+
+\subsection{任意进制的竖式加法}
+
+\qquad 加法是最基本的算术运算。在计算机中，当处理大于单个数胞表示范围的大数时，我们需要一种系统的方法来执行加法，这种方法必须独立于计算机的原生字长和进制。任意进制的竖式加法提供了这样一种通用且高效的算法。
+
+\qquad 竖式加法的核心思想与我们小学学习的十进制竖式加法完全相同：将两个数的各位数字对齐，从最低位(最右边)开始逐位相加，并将产生的进位传递到更高位。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\subsubsection{数学原理与定义}
+
+\qquad 考虑两个自然数$\var{A}$和$\var{B}$，它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{b}_{\var{i}} \times \var{b}^{\var{i}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}}, \var{b}_{\var{i}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的和$\var{S} = \var{A} + \var{B}$，并同样用进制$\var{b}$表示结果：
+\[
+\var{S} = (\var{s}_{\var{k}-1}\var{s}_{\var{k}-2}\dots\var{s}_1\var{s}_0)_{\var{b}}
+\]
+其中，$\var{k} = \max(\var{m}, \var{n}) + 1$(考虑最高位可能的进位)。
+
+\subsubsection{算法步骤}
+
+\qquad 以下是任意进制$\var{b}$下竖式加法的通用算法步骤。该算法模拟了手工计算的过程，使用一个进位变量$\var{carry}$来在每一步暂存并传递进位值。
+
+\begin{enumerate}
+    \item \textbf{初始化}：
+    \begin{itemize}
+        \item 令进位$\var{carry} := 0$。
+        \item 令结果位计数器$\var{i} := 0$。
+        \item 可选：将$\var{A}$和$\var{B}$的位数补齐到相同长度(例如，在较短的数字前补零)，设最大长度为$\var{len} = \max(\var{m}, \var{n})$。
+    \end{itemize}
+    \item \textbf{逐位相加}：对于位索引$\var{j}$从$0$到$\var{len}-1$(从最低位到最高位)：
+    \begin{enumerate}
+        \item 获取当前位的数字(若该位不存在则视为$0$)：
+        \begin{align*}
+            \var{digitA} &:= \begin{cases}
+                \var{a}_{\var{j}}, & \text{如果 } \var{j} < \var{m} \\
+                0, & \text{否则}
+            \end{cases} \\
+            \var{digitB} &:= \begin{cases}
+                \var{b}_{\var{j}}, & \text{如果 } \var{j} < \var{n} \\
+                0, & \text{否则}
+            \end{cases}
+        \end{align*}
+        \item 计算当前位的和(包括低位来的进位)：
+              \[
+              \var{sumTemp} = \var{digitA} + \var{digitB} + \var{carry}
+              \]
+        \item 计算当前结果位的值和新进位：
+        \begin{align*}
+            \var{s}_{\var{i}} &:= \var{sumTemp} \bmod \var{b} \\
+            \var{carry} &:= \lfloor \frac{\var{sumTemp}}{\var{b}} \rfloor
+        \end{align*}
+        \item 结果位计数器$\var{i}$增加$1$。
+    \end{enumerate}
+    \item \textbf{处理最高位进位}：在处理完所有位的数字后, 如果 $\var{carry} > 0$:
+    \begin{enumerate}
+        \item $\var{s}_{\var{i}} := \var{carry}$
+        \item $\var{i} := \var{i} + 1$
+    \end{enumerate}
+    \item \textbf{得到结果}：最终结果$\var{S}$是一个由$\var{i}$位数字组成的序列$(\var{s}_{\var{i}-1}, \var{s}_{\var{i}-2}, \dots, \var{s}_0)_{\var{b}}$，其数值等于$\var{A} + \var{B}$。
+\end{enumerate}
+
+\qquad 此算法的关键在于第2(b)步和第2(c)步。单个数胞可以轻松计算$\var{digitA} + \var{digitB} + \var{carry}$，但其结果可能大于等于$\var{b}$。利用模运算($\bmod$)和整数除法($\lfloor \rfloor$)，我们可以将结果分解为属于$[0, \var{b}-1]$范围的本位值$\var{s}_{\var{i}}$和传递给下一位的进位值$\var{carry}$(其值为$0$或$1$，因为最大和$(\var{b}-1) + (\var{b}-1) + 1 = 2\var{b}-1 < 2\var{b}$，故进位最大为$1$)。
+
+\subsubsection{示例}
+
+\qquad \textbf{示例1(二进制，$\var{b}=2$):} 计算$A = (1101)_2$(即$13$)与$B = (1011)_2$(即$11$)的和。
+
+\begin{center}
+\begin{tabular}{ccccccc}
+ &   & 1 & 1 & 0 & 1 & ($A$) \\
++ &  & 1 & 0 & 1 & 1 & ($B$) \\
+\hline
+\textbf{Carry:} & 1 & 1 & 1 & 1 & 0 & \\
+\textbf{Sum (S):} & 1 & 1 & 0 & 0 & 0 & \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 初始化：$carry = 0$。
+    \item 第0位(最低位): $1 + 1 + 0 = 2$。 $s_0 = 2 \bmod 2 = 0$, $carry = \lfloor \frac{2}{2} \rfloor = 1$。
+    \item 第1位: $0 + 1 + 1 = 2$。 $s_1 = 2 \bmod 2 = 0$, $carry = \lfloor \frac{2}{2} \rfloor = 1$。
+    \item 第2位: $1 + 0 + 1 = 2$。 $s_2 = 2 \bmod 2 = 0$, $carry = \lfloor \frac{2}{2} \rfloor = 1$。
+    \item 第3位: $1 + 1 + 1 = 3$。 $s_3 = 3 \bmod 2 = 1$, $carry = \lfloor \frac{3}{2} \rfloor = 1$。
+    \item 处理最高位进位: $carry=1$，所以 $s_4 = 1$。
+    \item 结果: $S = (11000)_2 = 16 + 8 = 24$，等于$13 + 11$。
+\end{itemize}
+
+\qquad \textbf{示例2(十六进制，$\var{b}=16$):} 计算$A = (\mathrm{A}2)_{16}$(即$162$)与$B = (\mathrm{F}9)_{16}$(即$249$)的和。(注：A=10, F=15)
+
+\begin{center}
+\begin{tabular}{cccccc}
+ &  & A & 2 & ($A$) \\
++ &  & F & 9 & ($B$) \\
+\hline
+\textbf{Carry:} & 1 & 0 & 0 & \\
+\textbf{Sum (S):} & 1 & 9 & B & \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 初始化：$carry = 0$。
+    \item 第0位: $2 + 9 + 0 = 11$。 $11 < 16$, 所以 $s_0 = 11 = \mathrm{B}$, $carry = 0$。
+    \item 第1位: $10 + 15 + 0 = 25$。 $s_1 = 25 \bmod 16 = 9$, $carry = \lfloor \frac{25}{16} \rfloor = 1$。
+    \item 处理最高位进位: $carry=1$，所以 $s_2 = 1$。
+    \item 结果: $S = (\mathrm{19B})_{16} = 1\times256 + 9\times16 + 11 = 256 + 144 + 11 = 411$，等于$162 + 249$。
+\end{itemize}
+
+\qquad 任意进制的竖式加法算法是构建大数运算库的基础。通过与之前介绍的任意进制长除法相结合，可以实现在任何指定进制和数胞状态数下的完整算术运算，确保了数值计算的结果在不同计算平台和存储限制下的一致性，这正是模拟任意状态数的数胞的核心目标之一。
+
+\qquad \textbf{任意状态数的数胞的加法可以通过组合任意进制的长除法和任意进制的竖式加法这两种计算方法模拟}。
+
+\subsection{任意进制的竖式减法}
+
+\qquad 减法是与加法相对应的基本算术运算。在处理大数减法时，我们需要一种系统的方法来处理借位，这种方法同样必须独立于计算机的原生字长和进制。任意进制的竖式减法提供了这样一种通用且高效的算法。
+
+\qquad 竖式减法的核心思想与我们小学学习的十进制竖式减法完全相同：将两个数的各位数字对齐，从最低位(最右边)开始逐位相减，并在需要时向高位借位。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\subsubsection{数学原理与定义}
+
+\qquad 考虑两个非负大整数$\var{A}$和$\var{B}$，且$\var{A} \ge \var{B}$(确保结果非负)。它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{b}_{\var{i}} \times \var{b}^{\var{i}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}}, \var{b}_{\var{i}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的差$\var{D} = \var{A} - \var{B}$，并同样用进制$\var{b}$表示结果：
+\[
+\var{D} = (\var{d}_{\var{k}-1}\var{d}_{\var{k}-2}\dots\var{d}_1\var{d}_0)_{\var{b}}
+\]
+其中，$\var{k} \le \max(\var{m}, \var{n})$(结果的位数可能小于原数的位数)。
+
+\subsubsection{算法步骤}
+
+\qquad 以下是任意进制$\var{b}$下竖式减法的通用算法步骤。该算法模拟了手工计算的过程，使用一个借位变量$\var{borrow}$来在每一步暂存借位状态。
+
+\begin{enumerate}
+    \item \textbf{初始化}：
+    \begin{itemize}
+        \item 令借位$\var{borrow} := 0$。
+        \item 令结果位计数器$\var{i} := 0$。
+        \item 将$\var{A}$和$\var{B}$的位数补齐到相同长度(在较短的数字前补零)，设最大长度为$\var{len} = \max(\var{m}, \var{n})$。
+    \end{itemize}
+    \item \textbf{逐位相减}：对于位索引$\var{j}$从$0$到$\var{len}-1$(从最低位到最高位)：
+    \begin{enumerate}
+        \item 获取当前位的数字(若该位不存在则视为$0$)：
+        \begin{align*}
+            \var{digitA} &:= \begin{cases}
+                \var{a}_{\var{j}}, & \text{如果 } \var{j} < \var{m} \\
+                0, & \text{否则}
+            \end{cases} \\
+            \var{digitB} &:= \begin{cases}
+                \var{b}_{\var{j}}, & \text{如果 } \var{j} < \var{n} \\
+                0, & \text{否则}
+            \end{cases}
+        \end{align*}
+        \item 计算当前位的临时差(考虑借位)：
+              \[
+              \var{tempDiff} = \var{digitA} - \var{digitB} - \var{borrow}
+              \]
+        \item 处理借位并计算当前结果位：
+        \begin{align*}
+            \text{如果 } \var{tempDiff} < 0 \text{ 则} & \\
+            &\var{borrow} := 1 \\
+            &\var{d}_{\var{i}} := \var{tempDiff} + \var{b} \\
+            \text{否则} & \\
+            &\var{borrow} := 0 \\
+            &\var{d}_{\var{i}} := \var{tempDiff}
+        \end{align*}
+        \item 结果位计数器$\var{i}$增加$1$。
+    \end{enumerate}
+    \item \textbf{处理最高位借位}：在处理完所有位后，如果$\var{borrow} > 0$，则说明$\var{A} < \var{B}$，这与我们的前提$\var{A} \ge \var{B}$矛盾。在实际实现中，这一步可用于检测错误或处理负数情况。
+    \item \textbf{去除前导零}：结果可能包含高位多余的零，需要去除这些零以得到规范形式。
+    \item \textbf{得到结果}：最终结果$\var{D}$是一个由$\var{i}$位数字组成的序列$(\var{d}_{\var{i}-1}, \var{d}_{\var{i}-2}, \dots, \var{d}_0)_{\var{b}}$，其数值等于$\var{A} - \var{B}$。
+\end{enumerate}
+
+\subsubsection{示例}
+
+\qquad \textbf{示例1(二进制，$\var{b}=2$):} 计算$A = (1101)_2$(即$13$)与$B = (1011)_2$(即$11$)的差。
+
+\begin{center}
+\begin{tabular}{ccccccc}
+ &   & 1 & 1 & 0 & 1 & ($A$) \\
+- &  & 1 & 0 & 1 & 1 & ($B$) \\
+\hline
+\textbf{Borrow:} & 0 & 0 & 1 & 0 & 0 & \\
+\textbf{Diff (D):} &  & 0 & 0 & 1 & 0 & \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 初始化：$\var{borrow} = 0$。
+    \item 第0位(最低位): $1 - 1 - 0 = 0$。 $\var{d}_0 = 0$, $\var{borrow} = 0$。
+    \item 第1位: $0 - 1 - 0 = -1$。 $\var{tempDiff} < 0$, 所以 $\var{borrow} = 1$, $\var{d}_1 = -1 + 2 = 1$。
+    \item 第2位: $1 - 0 - 1 = 0$。 $\var{d}_2 = 0$, $\var{borrow} = 0$。
+    \item 第3位: $1 - 1 - 0 = 0$。 $\var{d}_3 = 0$, $\var{borrow} = 0$。
+    \item 结果: $D = (0010)_2 = 2$，等于$13 - 11$。去除前导零后为$(10)_2$。
+\end{itemize}
+
+\qquad \textbf{示例2(十六进制，$\var{b}=16$):} 计算$A = (\mathrm{A}2)_{16}$(即$162$)与$B = (\mathrm{7C})_{16}$(即$124$)的差。
+
+\begin{center}
+\begin{tabular}{cccccc}
+ &  & A & 2 & ($A$) \\
+- &  & 7 & C & ($B$) \\
+\hline
+\textbf{Borrow:} & 0 & 1 & 0 & \\
+\textbf{Diff (D):} &  & 2 & 6 & \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 初始化：$\var{borrow} = 0$。
+    \item 第0位: $2 - 12 - 0 = -10$。 $\var{tempDiff} < 0$, 所以 $\var{borrow} = 1$, $\var{d}_0 = -10 + 16 = 6$。
+    \item 第1位: $10 - 7 - 1 = 2$。 $\var{d}_1 = 2$, $\var{borrow} = 0$。
+    \item 结果: $D = (26)_{16} = 2\times16 + 6 = 38$，等于$162 - 124$。
+\end{itemize}
+
+\qquad 任意进制的竖式减法算法与竖式加法相结合，构成了完整的大数算术运算基础。通过正确处理借位和进制转换，该算法确保了在不同计算平台和存储限制下减法运算的一致性，进一步支持了模拟任意上限数胞的目标。
+
+\qquad \textbf{任意状态数的数胞的减法可以通过组合任意进制的长除法和任意进制的竖式减法这两种计算方法模拟}。
+
+\subsection{任意进制的竖式乘法}
+
+\qquad 乘法是算术运算中的重要组成部分，它比加法和减法更为复杂。在处理大数乘法时，我们需要一种系统的方法来逐位相乘并处理进位。任意进制的竖式乘法提供了一种通用且高效的算法，可以处理任意进制下的乘法运算。
+
+\qquad 竖式乘法的核心思想与我们小学学习的十进制竖式乘法相同：将一个乘数的每一位与另一个乘数的每一位相乘，然后将结果按位对齐并相加。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\subsubsection{数学原理与定义}
+
+\qquad 考虑两个非负大整数$\var{A}$和$\var{B}$，它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{j}=0}^{\var{n}-1}\var{b}_{\var{j}} \times \var{b}^{\var{j}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}}, \var{b}_{\var{j}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的乘积$\var{P} = \var{A} \times \var{B}$，并同样用进制$\var{b}$表示结果：
+\[
+\var{P} = (\var{p}_{\var{k}-1}\var{p}_{\var{k}-2}\dots\var{p}_1\var{p}_0)_{\var{b}}
+\]
+其中，$\var{k} \le \var{m} + \var{n}$(乘积的位数最多为两个乘数位数之和)。
+
+\subsubsection{算法步骤}
+
+\qquad 以下是任意进制$\var{b}$下竖式乘法的通用算法步骤。该算法模拟了手工计算的过程，使用一个中间结果数组来存储部分乘积。
+
+\begin{enumerate}
+    \item \textbf{初始化}：
+    \begin{itemize}
+        \item 创建一个长度为$\var{m}+\var{n}$的结果数组$\var{result}$，初始化为全零。
+        \item 这个数组将用于存储乘法过程中的所有中间结果和最终乘积。
+    \end{itemize}
+    \item \textbf{逐位相乘}：对于乘数$\var{B}$的每一位索引$\var{j}$从$0$到$\var{n}-1$(从最低位到最高位)：
+    \begin{enumerate}
+        \item 初始化进位$\var{carry} := 0$。
+        \item 对于乘数$\var{A}$的每一位索引$\var{i}$从$0$到$\var{m}-1$(从最低位到最高位)：
+        \begin{enumerate}
+            \item 计算当前位的乘积：$\var{product} = \var{a}_{\var{i}} \times \var{b}_{\var{j}} + \var{result}[\var{i}+\var{j}] + \var{carry}$
+            \item 计算当前位的值和新进位：
+            \begin{align*}
+                \var{result}[\var{i}+\var{j}] &:= \var{product} \bmod \var{b} \\
+                \var{carry} &:= \lfloor \frac{\var{product}}{\var{b}} \rfloor
+            \end{align*}
+        \end{enumerate}
+        \item 处理最高位进位：如果$\var{carry} > 0$，则将其加到结果数组的下一个位置：
+        \[
+        \var{result}[\var{j}+\var{m}] := \var{result}[\var{j}+\var{m}] + \var{carry}
+        \]
+    \end{enumerate}
+    \item \textbf{处理最终进位}：遍历整个结果数组，从低位到高位处理可能的进位：
+    \begin{enumerate}
+        \item 对于每个位置$\var{k}$从$0$到$\var{m}+\var{n}-2$：
+        \begin{align*}
+            \var{carry} &:= \lfloor \frac{\var{result}[\var{k}]}{\var{b}} \rfloor \\
+            \var{result}[\var{k}] &:= \var{result}[\var{k}] \bmod \var{b} \\
+            \var{result}[\var{k}+1] &:= \var{result}[\var{k}+1] + \var{carry}
+        \end{align*}
+    \end{enumerate}
+    \item \textbf{去除前导零}：从最高位开始，去除结果数组中的前导零，得到规范形式的乘积。
+    \item \textbf{得到结果}：最终结果$\var{P}$是一个由非零位数字组成的序列，其数值等于$\var{A} \times \var{B}$。
+\end{enumerate}
+
+\subsubsection{示例}
+
+\qquad \textbf{示例1(二进制，$\var{b}=2$):} 计算$A = (1101)_2$(即$13$)与$B = (1011)_2$(即$11$)的乘积。
+
+\begin{center}
+\begin{tabular}{cccccccc}
+ &   &   &   & 1 & 1 & 0 & 1 \\ % ($A$) 
+ &   &   & $\times$ & 1 & 0 & 1 & 1 \\ % ($B$)
+\hline
+ &   &   &   & 1 & 1 & 0 & 1 \\ % ($A \times 1$)
+ &   &   &   1 & 1 & 0 & 1 \\ % ($A \times 1$，左移1位) - 原来这里有多余的 &
+ &   &   0 & 0 & 0 & 0 \\ % ($A \times 0$，左移2位) - 原来这里有多余的 &
+ &   1 & 1 & 0 & 1 &   \\ % ($A \times 1$，左移3位)
+\hline
+ 1 & 0 & 0 & 0 & 1 & 1 & 1 & 1 \\ % ($P$) - 这里也需要调整列数
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 初始化：创建长度为$4+4=8$的结果数组，初始为$[0,0,0,0,0,0,0,0]$。
+    \item 第0轮($\var{j}=0$, $\var{b}_0=1$):
+    \begin{itemize}
+        \item $\var{i}=0$: $1 \times 1 + 0 + 0 = 1$, $\var{result}[0]=1$, $\var{carry}=0$
+        \item $\var{i}=1$: $0 \times 1 + 0 + 0 = 0$, $\var{result}[1]=0$, $\var{carry}=0$
+        \item $\var{i}=2$: $1 \times 1 + 0 + 0 = 1$, $\var{result}[2]=1$, $\var{carry}=0$
+        \item $\var{i}=3$: $1 \times 1 + 0 + 0 = 1$, $\var{result}[3]=1$, $\var{carry}=0$
+    \end{itemize}
+    \item 第1轮($\var{j}=1$, $\var{b}_1=1$):
+    \begin{itemize}
+        \item $\var{i}=0$: $1 \times 1 + 0 + 0 = 1$, $\var{result}[1]=0+1=1$, $\var{carry}=0$
+        \item $\var{i}=1$: $0 \times 1 + 0 + 0 = 0$, $\var{result}[2]=1+0=1$, $\var{carry}=0$
+        \item $\var{i}=2$: $1 \times 1 + 0 + 0 = 1$, $\var{result}[3]=1+1=2$, $2 \bmod 2=0$, $\lfloor 2/2 \rfloor=1$
+        \item $\var{i}=3$: $1 \times 1 + 0 + 1 = 2$, $\var{result}[4]=0+2=2$, $2 \bmod 2=0$, $\lfloor 2/2 \rfloor=1$
+        \item 处理进位: $\var{result}[5]=0+1=1$
+    \end{itemize}
+    \item 继续处理剩余位...
+    \item 最终结果: $P = (10001111)_2 = 128+8+4+2+1=143$，等于$13 \times 11$。
+\end{itemize}
+
+\qquad \textbf{示例2(十进制，$\var{b}=10$):} 计算$A = 123$与$B = 45$的乘积。
+
+\begin{center}
+\begin{tabular}{cccccc}
+ &   & 1 & 2 & 3 & ($A$) \\
+ & $\times$ & 4 & 5 &   & ($B$) \\
+\hline
+ &   & 6 & 1 & 5 & ($123 \times 5$) \\
++ & 4 & 9 & 2 &   & ($123 \times 4$，左移1位) \\
+\hline
+ & 5 & 5 & 3 & 5 & ($P$) \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+    \item 第0轮($\var{j}=0$, $\var{b}_0=5$):
+    \begin{itemize}
+        \item $3 \times 5 = 15$, $\var{result}[0]=5$, $\var{carry}=1$
+        \item $2 \times 5 + 1 = 11$, $\var{result}[1]=1$, $\var{carry}=1$
+        \item $1 \times 5 + 1 = 6$, $\var{result}[2]=6$, $\var{carry}=0$
+    \end{itemize}
+    \item 第1轮($\var{j}=1$, $\var{b}_1=4$):
+    \begin{itemize}
+        \item $3 \times 4 + 0 = 12$, $\var{result}[1]=1+2=3$, $\var{carry}=1$
+        \item $2 \times 4 + 1 = 9$, $\var{result}[2]=6+9=15$, $15 \bmod 10=5$, $\lfloor 15/10 \rfloor=1$
+        \item $1 \times 4 + 1 = 5$, $\var{result}[3]=0+5=5$, $\var{carry}=0$
+    \end{itemize}
+    \item 最终结果: $P = 5535$，等于$123 \times 45$。
+\end{itemize}
+
+\qquad 任意进制的竖式乘法算法是构建完整大数算术运算库的关键组成部分。通过正确处理每一位的乘法和进位，该算法确保了在不同计算平台和存储限制下乘法运算的一致性。与之前介绍的竖式加法和竖式减法相结合，我们可以实现完整的任意进制大数运算，为模拟任意上限的数胞提供了坚实的基础。
+
+\qquad 需要注意的是，竖式乘法的时间复杂度为$O(\var{m} \times \var{n})$，其中$\var{m}$和$\var{n}$分别是两个乘数的位数。对于非常大的数，可以使用更高效的算法来优化性能，但竖式乘法作为最基础和最直观的算法，仍然是理解乘法原理的重要工具。
+
+\qquad \textbf{任意状态数的数胞的乘法可以通过组合任意进制的长除法和任意进制的竖式乘法这两种计算方法模拟}。
+
+\subsection{使用伪代码模拟任意状态数的数胞}
+
+\qquad 从现在开始，我们将使用详细的、尽可能高效的、但可能不是最简单的、可能与之前所述简单方法有差别的算法来模拟任意状态数的数胞。
+
+\qquad 首先，我们需要一些用于辅助的结构和算法来帮助我们完成编写。
+
+\subsubsection{视图}
+\[\begin{bmatrix}
+    \text{结构体}: SPAN\{\var{T}\} \\
+    \var{p} \in PTR_{\var{T}} \\
+    \var{l} \in NC_{\var{WORDSIZEVALUE}}
+\end{bmatrix}\]
+\[\text{定义}: SPAN_{\var{T}} = SPAN\{\var{T}\}\]
+我们需要一个结构，用于关注一个线性存储空间的一部分。
+例如，有一个数组，我们可以取这个数组中某个位置的子数组作为视图。
+
+\[\text{定义}: \mathrm{GetElement}\{\var{T}\}(\var{span} \in SPAN_{\var{T}}, \var{index} \in NC_{\var{WORDSIZEVALUE}}) \rightarrow \var{T} =\]
+\[\begin{bmatrix}
+    \text{输出}: (\var{span} \rightarrow p)[\var{index}] \quad \blacksquare \text{要求满足}\var{index} < \var{l}
+\end{bmatrix}\]
+\[\text{定义}: \var{span}[\var{index}] = \mathrm{GetElement}\{\var{T}\}(\var{span}, \var{index}),\]
+\[\var{span} \in SPAN_{\var{T}}, \var{index} \in NC_{\var{WORDSIZEVALUE}}\]
+这个算法及这些定义简化了从一个视图中获取一个元素的步骤。
+
+\[\text{定义}: \mathrm{SubSpan}(\var{span} \in SPAN_{\var{T}}, \var{index} \in NC_{\var{WORDSIZEVALUE}}, \var{length} \in NC_{\var{WORDSIZEVALUE}})\]
+\[\rightarrow SPAN_{\var{T}} = \quad \blacksquare \text{要求满足}\var{index} \oplus \var{length} \leq \var{span} \rightarrow \var{l}\]
+\[\begin{bmatrix}
+    \var{newspan} \in SPAN_{\var{T}} \\
+    \var{newspan} \rightarrow p := (\var{span} \rightarrow p) \boxplus \var{index} \\
+    \var{newspan} \rightarrow l := \var{length} \\
+    \text{输出}: \var{newspan}
+\end{bmatrix}\]
+\[\text{定义}: \var{span} \rightarrow \mathrm{subspan}(\var{index}, \var{length}) = \mathrm{SubSpan}\{\var{T}\}(\var{span}, \var{index}, \var{length}),\]
+\[\var{span} \in SPAN_{\var{T}}, \var{index} \in NC_{\var{WORDSIZEVALUE}}, \var{length} \in NC_{\var{WORDSIZEVALUE}}\]
+这个算法及这些定义简化了从一个视图中截取一个子视图的步骤。
+
+\subsubsection{数组形式的模拟数胞之间的比较}
+
+\qquad 因为任意状态数的数胞需要的存储空间可能大于$NC_{\var{WORDSIZEVALUE}}$所占的存储空间，所以我们需要使用数组来模拟数胞。
+以确保任意大的状态数都可以进行存储和计算。
+
+\qquad 那么，这种数组形式的模拟数胞之间的比较算法，就是比较数组有效位的长度，或在有效位长度一致时从高位到低位，对数组进行比较。
+
+\qquad 下面我们实现数组形式的模拟数胞之间相等判断和小于判断，其余比较算法同理，不做实现。
+
+\[\text{定义}: \mathrm{IsEqual}\{\var{T}\}(\var{left} \in PTR_{\var{T}}, \var{ll} \in NC_{\var{WORDSIZEVALUE}},\]
+\[\var{right} \in PTR_{\var{T}}, \var{lr} \in NC_{\var{WORDSIZEVALUE}}) \rightarrow NC_2 =\]
+\[\begin{bmatrix}
+    \blacksquare \text{要求满足}\var{ll} > 0, \var{lr} > 0 \\
+    \begin{cases}
+        \text{输出}: \mathrm{boolvalue}(\mathbf{F}) \quad \text{如果}: \var{ll} \ne \var{lr} \\
+        \blacksquare \text{要求满足}\var{left},\var{right}\text{都没有无效位，当有效位长度不一致时，一定不相等} \\
+    \end{cases} \\
+    \blacksquare \text{此时长度一定一致，逐个比较高位到低位} \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(\var{ll} \ominus 1) \\
+    \begin{bmatrix}
+        \begin{cases}
+            \text{输出}: \mathrm{boolvalue}(\mathbf{F}) \quad \text{如果}: \var{left}[\var{i}] \ne \var{right}[\var{i}] \\
+            \blacksquare \text{当任何对应位不相等，}\var{left},\var{right}\text{就不相等} \\
+            \var{i} :=^{\oplus} 1 \\
+        \end{cases} \\
+    \end{bmatrix} \\
+    \text{输出}: \mathrm{boolvalue}(\mathbf{T}) \quad \blacksquare \text{此时满足}\var{left} = \var{right}
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{IsLess}\{\var{T}\}(\var{left} \in PTR_{\var{T}}, \var{ll} \in NC_{\var{WORDSIZEVALUE}},\]
+\[\var{right} \in PTR_{\var{T}}, \var{lr} \in NC_{\var{WORDSIZEVALUE}}) \rightarrow NC_2 =\]
+\[\begin{bmatrix}
+    \blacksquare \text{要求满足}\var{ll} > 0, \var{lr} > 0 \\
+    \begin{cases}
+        \text{输出}: \mathrm{boolvalue}(\mathbf{T}) \quad \text{如果}: \var{ll} < \var{lr} \\
+        \text{输出}: \mathrm{boolvalue}(\mathbf{F}) \quad \text{如果}: \var{ll} > \var{lr} \\
+        \blacksquare \text{要求满足}\var{left},\var{right}\text{都没有无效位，当有效位长度不一致时，一定不相等} \\
+        \blacksquare \text{此时长度大的就是大数，长度小的就是小数}
+    \end{cases} \\
+    \blacksquare \text{此时长度一定一致，逐个比较高位到低位} \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(\var{ll} \ominus 1) \\
+    \begin{bmatrix}
+        \begin{cases}
+            \text{输出}: \mathrm{boolvalue}(\mathbf{T}) \quad \text{如果}: \var{left}[\var{i}] < \var{right}[\var{i}] \\
+            \text{输出}: \mathrm{boolvalue}(\mathbf{F}) \quad \text{如果}: \var{left}[\var{i}] > \var{right}[\var{i}] \\
+            \blacksquare \text{当任何对应位不相等，}\var{left},\var{right}\text{就不相等} \\
+            \blacksquare \text{此时此位，大的就是大数，小的就是小数}
+            \var{i} :=^{\oplus} 1 \\
+        \end{cases} \\
+    \end{bmatrix} \\
+    \text{输出}: \mathrm{boolvalue}(\mathbf{F}) \quad \blacksquare \text{此时满足}\var{left} = \var{right}
+\end{bmatrix}\]
+
+\subsubsection{任意进制的长除法的具体算法}
+
+\qquad 接下来，我们给出任意进制的长除法的具体算法。
+\[\text{定义}: \mathrm{SubBetweenHugeValue}(\var{minuend} \in SPAN_{NC_{\var{BASE}}}, \var{subtrahend} \in SPAN_{NC_{\var{BASE}}})\]
+\[\text{设}\var{minuend}\text{所占存储空间中的自然数为}\var{m}, \var{subtrahend}\text{所占存储空间中的自然数为}\var{s}\]
+\[\text{执行之后，}\var{m}\text{变为减去数次}\var{s}\text{的结果，结果}\var{r}\text{满足}\var{r} > 0 \wedge \var{r} < \var{s}\]
+这个算法用于在长除法中进行减法。
+
+\[\text{定义}: \mathrm{Cast}\{\var{T}, \var{t}\}(\var{p} \in PTR_{\var{T}}) \rightarrow PTR_{\var{t}}\]
+\[\text{用于将一个}\var{T}\text{类型的指针变量}\var{p}\text{转换成一个}\var{t}\text{类型的指针变量输出，其指向的地址不变}\]
+
+\[\text{定义}: \mathrm{LongMod}(\var{dividend} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}, \var{divisor} \in SPAN_{NC_{\var{WORDSIZEVALUE}}})\]
+\[\rightarrow DA_{NC_{\var{WORDSIZEVALUE}}} =\]
+\[\begin{bmatrix}
+    \var{dividendbitspan} \in SPAN_{\var{BASE}} \\
+    \var{dividendbitspan} \rightarrow p := \mathrm{Cast}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{BASE}}\}(\var{dividend} \rightarrow p) \\
+    \var{dividendbitspan} \rightarrow l := (\var{dividend} \rightarrow l) \otimes \var{BYTELENGTH} \otimes \var{WORDSIZE} \\
+    \var{divisorbitspan} \in SPAN_{\var{BASE}} \\
+    \var{divisorbitspan} \rightarrow p := \mathrm{Cast}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{BASE}}\}(\var{divisor} \rightarrow p) \\
+    \var{divisorbitspan} \rightarrow l := (\var{divisor} \rightarrow l) \otimes \var{BYTELENGTH} \otimes \var{WORDSIZE} \\
+    \blacksquare \text{将输入的视图转换成位视图，要求满足}\var{dividend} \rightarrow l > 0 \wedge \var{divisor} \rightarrow l > 0 \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}((\var{dividendbitspan} \rightarrow l) \ominus 1) \\
+    \begin{bmatrix}
+        \text{当}: (\var{dividendbitspan} \rightarrow p)[\var{i}] = 0 \wedge \var{i} > 0 \\
+        (\var{dividendbitspan} \rightarrow l) :=^{\ominus} 1 \\
+        \var{i} :=^{\ominus} 1 \\
+    \end{bmatrix} \\
+    \var{i} := (\var{divisorbitspan} \rightarrow l) \ominus 1 \\
+    \begin{bmatrix}
+        \text{当}: (\var{divisorbitspan} \rightarrow p)[\var{i}] = 0 \wedge \var{i} > 0 \\
+        (\var{divisorbitspan} \rightarrow l) :=^{\ominus} 1 \\
+        \var{i} :=^{\ominus} 1 \\
+    \end{bmatrix} \\
+    \blacksquare \text{为两个位视图去除无效位（值为0的视图保留一位）} \\
+    \begin{cases}
+        \text{如果}: \var{dividendbitspan} \rightarrow l < \var{divisorbitspan} \rightarrow l \\
+        \var{result} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{dividend} \rightarrow l) \\
+        \var{i} := 0 \\
+        \begin{bmatrix}
+            \text{当}: \var{i} < \var{dividend} \rightarrow l \\
+            \var{result}[\var{i}] := (\var{dividend} \rightarrow p)[\var{i}] \\
+            \var{i} :=^{\oplus} 1 \\
+        \end{bmatrix} \\
+        \text{输出}: \var{result} \\
+        \blacksquare \text{如果能确定被除数小于除数，那么直接输出被除数，不用进行计算} \\
+    \end{cases} \\
+    \text{输出}: \mathrm{LongModProc}(\var{dividendbitspan}, \var{divisorbitspan})
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{Copy}\{\var{T}, \var{t}\}(\var{P} \in PTR_{\var{T}}, \var{p} \in PTR_{\var{t}}, \var{length} \in NC_{\var{WORDSIZEVALUE}})\]
+\[\text{执行之后}\var{P}\text{所指向的存储空间中的连续}\var{length}\text{个字节被更改为}\]
+\[\var{p}\text{所指向的存储空间中的连续}\var{length}\text{个字节}\]
+
+\[\text{定义}: \mathrm{LongModProc}(\var{dividendbitspan} \in SPAN_{NC_{\var{BASE}}},\]
+\[\var{divisorbitspan} \in SPAN_{NC_{\var{BASE}}}) \rightarrow DA_{NC_{\var{WORDSIZEVALUE}}} =\]
+\[\begin{bmatrix}
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(0) \\
+    \begin{bmatrix}
+        \text{当}: \var{i} < \var{dividendbitspan} \rightarrow l \\
+        \var{startindex} := (\var{dividendbitspan} \rightarrow l) \ominus 1 \ominus \var{i} \\
+        \var{length} := \var{i} \oplus 1 \\
+        \var{subdividend} := \var{dividendbitspan} \rightarrow \mathrm{subspan}(\var{startindex}, \var{length}) \\
+        \blacksquare \var{subdividend}\text{是长除法中关注的余数的子位视图} \\
+        \var{j} := NC_{\var{WORDSIZEVALUE}}((\var{subdividend} \rightarrow l) \ominus 1) \\
+        \begin{bmatrix}
+            \text{当}: (\var{subdividend} \rightarrow p)[\var{j}] = 0 \wedge \var{j} > 0 \\
+            (\var{subdividend} \rightarrow l) :=^{\ominus} 1 \\
+            \var{j} :=^{\ominus} 1 \\
+        \end{bmatrix} \\
+        \blacksquare \text{为子位视图去除无效位（值为0的视图保留一位）} \\
+        \begin{cases}
+            \quad \text{如果}: \mathrm{IsLess}\{NC_{\var{BASE}}\}(\var{subdividend} \rightarrow p, \var{subdividend} \rightarrow l, \\
+            \var{divisorbitspan} \rightarrow p, \var{divisorbitspan} \rightarrow l) \\
+            \mathrm{SubBetweenHugeValue}(\var{subdividend}, \var{divisorbitspan}) \\
+            \blacksquare \text{如果子位视图小于除数，那么进行相减} \\
+        \end{cases} \\
+        \var{i} :=^{\oplus} 1 \\
+    \end{bmatrix} \\
+    \var{remaindersize} := (\var{dividendbitspan} \rightarrow l) \oslash (\var{BYTELENGTH} \otimes \var{WORDSIZE}) \\
+    \var{remainder} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{remaindersize}) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{BASE}}\}(\var{remainder} \rightarrow addr, \var{dividendbitspan} \rightarrow p, \\
+    \var{remaindersize}) \\
+    \var{i} := \var{remaindersize} \ominus 1 \\
+    \begin{bmatrix}
+        \text{当}: \var{remainder}[\var{i}] = 0 \wedge \var{i} > 0 \\
+        \var{remainder} \rightarrow \mathrm{remove}() \\
+        \var{i} :=^{\ominus} 1 \\
+    \end{bmatrix} \\
+    \blacksquare \text{初始化存储余数的数组，并去除无效位（值为0时保留一位）} \\
+    \text{输出}: \var{remainder}
+\end{bmatrix}\]
+
+以上算法使用任意进制的长除法求余数。
+但是求商也是一样的，初始化一个长度与被除数数组相同的数组，然后把它转换成位视图。
+在$\var{subdividend}$的值小于$\var{divisorbitspan}$\\时，记录$\var{subdividend} \div \var{divisorbitspan}$的整除值，
+然后把整除值放在代表商的位视图从$0$开始的第$(\var{dividendbitspan} \rightarrow l) \ominus 1 \ominus \var{i}$位上。
+最后去除无效位就可以输出得到商了。求商的算法将不进行详细描述，直接略过。
+
+\subsubsection{任意状态数的数胞的加法}
+
+\qquad 接下来，我们给出任意状态数的数胞的加法的具体算法。
+
+\[\text{定义}: \mathrm{PropagateCarryInIncrease}(\var{parts} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}, \var{carry} \in NC_2) \rightarrow NC_2\]
+\[\text{执行这个算法之后，}\var{parts}\text{所表示的自然数变为原来的值加上}\var{carry}\text{的值，}\]
+\[\text{如果溢出，则新值为0，并输出1，否则输出0}\]
+
+\[\text{定义}: \mathrm{LimitValueAfterIncrease}(\var{n} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}, \var{v} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}),\]
+\[\text{执行这个算法之后，}\var{v}\text{所表示的自然数变为原来的值减去}\var{n}\text{的值，}\]
+\[\text{如果溢出，则不需要特殊处理，由硬件解释计算溢出的结果}\]
+
+\[\text{定义}: \mathrm{IsOverflow}() \rightarrow NC_2,\]
+\[\text{这个算法判断上一条伪代码语句是否产生了计算溢出，并输出为布尔值}\]
+
+\[\text{定义}: \mathrm{LimitRightValueThenIncrease}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}},\]
+\[\var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \var{copyright} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{right} \rightarrow l) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{copyright} \rightarrow addr, \\
+    \var{right} \rightarrow addr, (\var{right} \rightarrow l) \otimes \var{WORDSIZE}) \\
+    \var{copyrightspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{copyrightspan} \rightarrow p := \var{copyright} \rightarrow addr \\
+    \var{copyrightspan} \rightarrow l := \var{right} \rightarrow l \\
+    \blacksquare \text{将}\var{right}\text{指向的数据复制到}\var{copyright}\text{，} \\
+    \text{防止使用}\mathrm{LongMod}\text{时更改}\var{right}\text{指向的数据} \\
+    \var{nspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+    \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+    \var{remainder} := \mathrm{LongMod}(\var{copyrightspan}, \var{nspan}) \\
+    \mathrm{Add}(\var{left}, \var{remainder}) \\
+    \downarrow \var{remainder} \\
+    \downarrow \var{copyright} \\
+    \blacksquare \text{如果}\var{right}\text{的值大于}\var{n}\text{，则将}\var{right}\text{的值限制在}\var{n}\text{的范围内} \\
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{Add}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \blacksquare \text{此算法会将}\var{right}\text{的值加到}\var{left}\text{上，并限制在状态数}\var{n}\text{的范围内} \\
+    \blacksquare \text{要求满足}\var{right},\var{n}\text{皆没有无效位，且}\var{left}\text{的长度与}\var{n}\text{相同} \\
+    \begin{cases}
+        \text{如果}: \mathrm{IsGreaterOrEqual}(\var{right} \rightarrow addr, \var{right} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \blacksquare \mathrm{IsGreaterOrEqual}\text{并未给出实现，请参考之前有关模拟数胞之间的比较} \\
+        \mathrm{LimitRightValueThenIncrease}(\var{left}, \var{right}, \var{n}) \\
+        \blacksquare \text{这个分支确保之后}\mathrm{Add}\text{执行时}\var{right}\text{指向的值小于}\var{n} \\
+    \end{cases} \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(0) \\
+    \var{carry} := NC_2(0) \\
+    \begin{bmatrix}
+        \text{当}: \var{i} < \var{left} \rightarrow l \wedge \var{i} < \var{right} \rightarrow l \\
+        \var{copycarry} := NC_{\var{WORDSIZEVALUE}}(0) \\
+        \var{copycarry} :=^{\oplus} \var{carry} \\
+        \var{left}[\var{i}] := \var{left}[\var{i}] \oplus \var{right}[\var{i}] \oplus \var{copycarry} \\
+        \var{carry} := \mathrm{IsOverflow}() \\
+        \var{i} :=^{\oplus} 1 \\
+    \end{bmatrix} \\
+    \begin{cases}
+        \text{如果}: \var{carry} = 1 \wedge \var{i} < \var{left} \rightarrow l \wedge \var{i} \ge \var{right} \rightarrow l \\
+        \var{parts} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{parts} \rightarrow p := \var{left} \rightarrow addr \\
+        \var{parts} \rightarrow l := \var{left} \rightarrow l \\
+        \var{parts} \rightarrow p := \var{parts} \rightarrow p \boxplus \var{i} \\
+        \var{patys} \rightarrow l :=^{\ominus} \var{i} \\
+        \var{carry} := \mathrm{PropagateCarryInIncrease}(\var{parts}, \var{carry}) \\
+        \blacksquare \text{如果}\var{right}\text{的长度小于}\var{left}\text{的长度，且进位不为0，} \\
+        \text{则将进位处理到}\var{left}\text{的相应位置} \\
+    \end{cases} \\
+    \begin{cases}
+        \text{如果}: \var{carry} = 1 \vee \mathrm{IsGreaterOrEqual}(\var{left} \rightarrow addr, \var{left} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \var{nspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+        \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+        \var{vspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{vspan} \rightarrow p := \var{left} \rightarrow addr \\
+        \var{vspan} \rightarrow l := \var{left} \rightarrow l \\
+        \mathrm{LimitValueAfterIncrease}(\var{nspan}, \var{vspan}) \\
+        \blacksquare \text{如果最后产生进位，或没有进位但是值相对状态数溢出，进行值的修正}
+    \end{cases}
+\end{bmatrix}\]
+
+\subsubsection{任意状态数的数胞的减法}
+
+\qquad 接下来，我们给出任意状态数的数胞的减法的具体算法。
+
+\[\text{定义}: \mathrm{PropagateBorrowInDecrease}(\var{parts} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}, \var{borrow} \in NC_2) \rightarrow NC_2\]
+\[\text{执行这个算法之后，}\var{parts}\text{所表示的自然数变为原来的值减去}\var{borrow}\text{的值，}\]
+\[\text{如果溢出，则新值为}0 \ominus 1\text{，并输出1，否则输出0}\]
+
+\[\text{定义}: \mathrm{LimitValueAfterDecrease}(\var{n} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}, \var{v} \in SPAN_{NC_{\var{WORDSIZEVALUE}}}),\]
+\[\text{执行这个算法之后，}\var{v}\text{所表示的自然数变为原来的值加上}\var{n}\text{的值，}\]
+\[\text{如果溢出，则不需要特殊处理，由硬件解释计算溢出的结果}\]
+
+\[\text{定义}: \mathrm{LimitRightValueThenIncrease}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}},\]
+\[\var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \var{copyright} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{right} \rightarrow l) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{copyright} \rightarrow addr, \\
+    \var{right} \rightarrow addr, (\var{right} \rightarrow l) \otimes \var{WORDSIZE}) \\
+    \var{copyrightspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{copyrightspan} \rightarrow p := \var{copyright} \rightarrow addr \\
+    \var{copyrightspan} \rightarrow l := \var{right} \rightarrow l \\
+    \blacksquare \text{将}\var{right}\text{指向的数据复制到}\var{copyright}\text{，} \\
+    \text{防止使用}\mathrm{LongMod}\text{时更改}\var{right}\text{指向的数据} \\
+    \var{nspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+    \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+    \var{remainder} := \mathrm{LongMod}(\var{copyrightspan}, \var{nspan}) \\
+    \mathrm{Sub}(\var{left}, \var{remainder}) \\
+    \downarrow \var{remainder} \\
+    \downarrow \var{copyright} \\
+    \blacksquare \text{如果}\var{right}\text{的值大于}\var{n}\text{，则将}\var{right}\text{的值限制在}\var{n}\text{的范围内} \\
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{Sub}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \blacksquare \text{此算法会将}\var{right}\text{的值减到}\var{left}\text{上，并限制在状态数}\var{n}\text{的范围内} \\
+    \blacksquare \text{要求满足}\var{right},\var{n}\text{皆没有无效位，且}\var{left}\text{的长度与}\var{n}\text{相同} \\
+    \begin{cases}
+        \text{如果}: \mathrm{IsGreaterOrEqual}(\var{right} \rightarrow addr, \var{right} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \blacksquare \mathrm{IsGreaterOrEqual}\text{并未给出实现，请参考之前有关模拟数胞之间的比较} \\
+        \mathrm{LimitRightValueThenDecrease}(\var{left}, \var{right}, \var{n}) \\
+        \blacksquare \text{这个分支确保之后}\mathrm{Sub}\text{执行时}\var{right}\text{指向的值小于}\var{n} \\
+    \end{cases} \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(0) \\
+    \var{borrow} := NC_2(0) \\
+    \begin{bmatrix}
+        \text{当}: \var{i} < \var{left} \rightarrow l \wedge \var{i} < \var{right} \rightarrow l \\
+        \var{copyborrow} := NC_{\var{WORDSIZEVALUE}}(0) \\
+        \var{copyborrow} :=^{\oplus} \var{borrow} \\
+        \var{left}[\var{i}] := \var{left}[\var{i}] \ominus \var{right}[\var{i}] \ominus \var{copyborrow} \\
+        \var{borrow} := \mathrm{IsOverflow}() \\
+        \var{i} :=^{\oplus} 1 \\
+    \end{bmatrix} \\
+    \begin{cases}
+        \text{如果}: \var{borrow} = 1 \wedge \var{i} < \var{left} \rightarrow l \wedge \var{i} \ge \var{right} \rightarrow l \\
+        \var{parts} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{parts} \rightarrow p := \var{left} \rightarrow addr \\
+        \var{parts} \rightarrow l := \var{left} \rightarrow l \\
+        \var{parts} \rightarrow p := \var{parts} \rightarrow p \boxplus \var{i} \\
+        \var{patys} \rightarrow l :=^{\ominus} \var{i} \\
+        \var{borrow} := \mathrm{PropagateBorrowInDecrease}(\var{parts}, \var{borro}) \\
+        \blacksquare \text{如果}\var{right}\text{的长度小于}\var{left}\text{的长度，且进位不为0，} \\
+        \text{则将进位处理到}\var{left}\text{的相应位置} \\
+    \end{cases} \\
+    \begin{cases}
+        \text{如果}: \var{borrow} = 1 \vee \mathrm{IsGreaterOrEqual}(\var{left} \rightarrow addr, \var{left} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \var{nspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+        \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+        \var{vspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+        \var{vspan} \rightarrow p := \var{left} \rightarrow addr \\
+        \var{vspan} \rightarrow l := \var{left} \rightarrow l \\
+        \mathrm{LimitValueAfterDecrease}(\var{nspan}, \var{vspan}) \\
+        \blacksquare \text{如果最后的值相对状态数溢出，或没有溢出但是产生借位，进行值的修正}
+    \end{cases}
+\end{bmatrix}\]
+
+\subsubsection{任意状态数的数胞的乘法}
+
+\qquad 接下来，我们给出任意状态数的数胞的乘法的具体算法。
+
+\[\text{定义}: \var{HALFSIZEVALUE} = \lfloor\var{WORDSIZEVALUE} \div 2\rfloor\]
+
+\[\text{定义}: \mathrm{PropagateCarryInMultiply}(\var{parts} \in SPAN_{NC_{\var{HALFSIZEVALUE}}}, \var{carry} \in NC_{\var{HALFSIZEVALUE}})\]
+\[\text{执行这个算法之后，}\var{parts}\text{所表示的自然数变为原来的值加上}\var{carry}\text{的值，}\]
+\[\text{需要确保}\var{parts}\text{不会溢出，算法没有输出}\]
+
+\[\text{定义}: \mathrm{LimitRightValueThenMultiply}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}},\]
+\[\var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \var{copyright} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{right} \rightarrow l) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{copyright} \rightarrow addr, \\
+    \var{right} \rightarrow addr, (\var{right} \rightarrow l) \otimes \var{WORDSIZE}) \\
+    \var{copyrightspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{copyrightspan} \rightarrow p := \var{copyright} \rightarrow addr \\
+    \var{copyrightspan} \rightarrow l := \var{right} \rightarrow l \\
+    \blacksquare \text{将}\var{right}\text{指向的数据复制到}\var{copyright}\text{，} \\
+    \text{防止使用}\mathrm{LongMod}\text{时更改}\var{right}\text{指向的数据} \\
+    \var{nspan} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+    \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+    \var{remainder} := \mathrm{LongMod}(\var{copyrightspan}, \var{nspan}) \\
+    \mathrm{Mul}(\var{left}, \var{remainder}) \\
+    \downarrow \var{remainder} \\
+    \downarrow \var{copyright} \\
+    \blacksquare \text{如果}\var{right}\text{的值大于}\var{n}\text{，则将}\var{right}\text{的值限制在}\var{n}\text{的范围内} \\
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{FillZero}\{\var{T}\}(\var{p} \in PTR_{\var{T}}), \]
+\[\text{执行此算法之后，}\var{p}\text{指向的数据所占的存储空间的每个字节都被设为0}\]
+
+\[\text{定义}: \mathrm{Mul}(\var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{right} \in DA_{NC_{\var{WORDSIZEVALUE}}}, \var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \blacksquare \text{此算法会将}\var{right}\text{的值乘到}\var{left}\text{上，并限制在状态数}\var{n}\text{的范围内} \\
+    \blacksquare \text{要求满足}\var{right},\var{n}\text{皆没有无效位，且}\var{left}\text{的长度与}\var{n}\text{相同} \\
+    \begin{cases}
+        \text{如果}: \mathrm{IsGreaterOrEqual}(\var{right} \rightarrow addr, \var{right} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \blacksquare \mathrm{IsGreaterOrEqual}\text{并未给出实现，请参考之前有关模拟数胞之间的比较} \\
+        \mathrm{LimitRightValueThenMultiply}(\var{left}, \var{right}, \var{n}) \\
+        \blacksquare \text{这个分支确保之后}\mathrm{Mul}\text{执行时}\var{right}\text{指向的值小于}\var{n} \\
+    \end{cases} \\
+    \var{halfformleft} \in SPAN_{NC_{\var{HALFSIZEVALUE}}} \\
+    \var{halfformleft} \rightarrow p := \mathrm{Cast}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{HALFSIZEVALUE}}\}(\var{left} \rightarrow addr) \\
+    \var{halfformleft} \rightarrow l := (\var{left} \rightarrow l) \otimes 2 \\
+    \var{halfformright} \in SPAN_{NC_{\var{HALFSIZEVALUE}}} \\
+    \var{halfformright} \rightarrow p := \mathrm{Cast}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{HALFSIZEVALUE}}\}(\var{right} \rightarrow addr) \\
+    \var{halfformright} \rightarrow l := (\var{right} \rightarrow l) \otimes 2 \\
+    \var{intermediatesize} := (\var{halfformleft} \rightarrow l) \oplus (\var{halfformright} \rightarrow l) \\
+    \var{intermediatedata} := \uparrow DA_{NC_{\var{HALFSIZEVALUE}}}(\var{intermediatesize}) \\
+    \mathrm{FillZero}\{ARR_{NC_{\var{HALFSIZEVALUE}}}(\var{intermediatesize})\}(\var{intermediatedata} \rightarrow addr) \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}(0) \\
+    \var{carry} := NC_{\var{HALFSIZEVALUE}}(0) \\
+    \blacksquare \text{外层循环，结束时代表}\var{right}\text{的每一位都已与自身的每一位相乘} \\
+    \begin{bmatrix}
+        \text{当}: \var{i} < \var{halfformright} \rightarrow l \\
+        \var{rightdigital} := (halfformright \rightarrow p)[\var{i}] \\
+        \blacksquare \text{内层循环，结束时代表}\var{right}\text{的第i位都已与自身的每一位相乘} \\
+        \mathrm{InnerLayerOfMultiply}(\var{i}, \var{rightdigital}, \var{halfformleft}, \\ \& \var{carry}, \var{intermediatedata}) \\
+        \begin{cases}
+            \var{lastparts} \in SPAN_{NC_{\var{HALFSIZEVALUE}}} \quad \text{如果}: \var{carry} > 0 \\
+            \var{lastparts} \rightarrow p := (\var{intermediatedata} \rightarrow addr) \boxplus \var{i} \boxplus (\var{halfformleft} \rightarrow l) \\
+            \var{lastparts} \rightarrow l := 1 \\
+            \mathrm{PropagateCarryInMultiply}(\var{lastparts}, \var{carry}) \\
+        \end{cases} \\
+        \var{i} :=^{\oplus} 1 \\
+    \end{bmatrix} \\
+    \mathrm{AfterMultiplyProc}(\var{intermediatedata}, \var{left}, \var{n})
+\end{bmatrix}\]
+
+\[\mathrm{InnerLayerOfMultiply}(\var{i} \in NC_{\var{WORDSIZEVALUE}}, \var{rightdigital} \in NC_{\var{HALFSIZEVALUE}},\]
+\[\var{halfformleft} \in SPAN_{NC_{\var{HALFSIZEVALUE}}}, \var{pcarry} \in PTR_{NC_{\var{HALFSIZEVALUE}}},\]
+\[\var{intermediatedata} \in DA_{NC_{\var{HALFSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \var{j} := NC_{\var{WORDSIZEVALUE}}(0) \\
+    \begin{bmatrix}
+        \text{当}: \var{j} < \var{halfformleft} \rightarrow l \\
+        \var{leftdigital} := NC_{\var{WORDSIZEVALUE}}(0) \\
+        \var{leftdigital} :=^{\oplus} (halfformleft \rightarrow p)[\var{i}] \\
+        \var{leftdigital} :=^{\otimes} \var{rightdigital} \\
+        \var{lastcarry} := \var{carry} \\
+        \var{temporary} := \var{leftdigital} \oslash \var{HALFSIZEVALUE} \\
+        \var{carry} := 0 \\
+        \var{carry} :=^{\oplus} \var{temporary} \\
+        \blacksquare \text{取相乘结果的高半部分作为下次乘法的进位} \\
+        \var{temporary} := \var{leftdigital} \; \mathrm{rem} \; \var{HALFSIZEVALUE} \\
+        \var{low} := NC_{\var{HALFSIZEVALUE}}(0) \\
+        \var{low} :=^{\oplus} \var{temporary} \\
+        \blacksquare \text{低半部分} \\
+        \var{intermediatedata}[\var{i} \oplus \var{j}] :=^{\oplus} \var{low} \\
+        \var{parts} \in SPAN_{NC_{\var{HALFSIZEVALUE}}} \quad \text{如果}: \mathrm{IsOverflow}() \\
+        \var{parts} \rightarrow p := (\var{halfformleft} \rightarrow p) \boxplus \var{i} \boxplus \var{j} \boxplus 1 \\
+        \var{parts} \rightarrow l := (\var{halfformleft} \rightarrow l) \ominus \var{i} \ominus \var{j} \ominus 2 \\
+        \begin{cases}
+            \mathrm{PropagateCarryInMultiply}(\var{parts}, 1) \\
+            \blacksquare \text{这个分支用于处理相加导致的进位} \\
+        \end{cases} \\
+        \var{parts} \rightarrow p := (\var{parts} \rightarrow p) \boxminus 1 \\
+        \var{parts} \rightarrow l :=^{\oplus} 1 \\
+        \mathrm{PropagateCarryInMultiply}(\var{parts}, \var{lastcarry}) \\
+        \begin{cases}
+            \var{carry} :=^{\oplus} 1 \quad \text{如果}: \var{low} \oplus \var{lastcarry} < \var{low} \\
+            \blacksquare \text{如果相乘结果加上进位导致再次进位，修正进位} \\
+        \end{cases} \\
+        \var{j} :=^{\oplus} 1 \\
+    \end{bmatrix} \\
+\end{bmatrix}\]
+
+\[\text{定义}: \mathrm{AfterMultiplyProc}(\var{intermediatedata} \in DA_{NC_{\var{HALFSIZEVALUE}}}, \var{left} \in DA_{NC_{\var{WORDSIZEVALUE}}},\]
+\[\var{n} \in DA_{NC_{\var{WORDSIZEVALUE}}}) =\]
+\[\begin{bmatrix}
+    \var{newsize} := \var{intermediatedata} \rightarrow l \\
+    \var{i} := NC_{\var{WORDSIZEVALUE}}((\var{intermediatedata} \rightarrow l) \ominus 1) \\
+    \begin{bmatrix}
+        \text{当}: \var{intermediatedata}[\var{i}] = 0 \wedge \var{i} \ge 0 \\
+        \var{newsize} :=^{\ominus} 1 \\
+        \var{i} :=^{\ominus} 1 \\
+        \blacksquare \text{设定新尺寸，去除无效位的长度} \\
+    \end{bmatrix} \\
+    \begin{cases}
+       \var{newsize} :=^{\oplus} 1 \text{如果}: \var{newsize} \; \mathrm{rem} \; 2 = 0 \\
+       \blacksquare \text{确保}\var{newsize}\text{是偶数} \\
+    \end{cases} \\
+    \var{intermediatedata} \rightarrow \mathrm{resize}(\var{newsize}) \\
+    \var{final} \in SPAN_{NC_{\var{WORDSIZEVALUE}}} \\
+    \var{final} \rightarrow p := \mathrm{Cast}\{NC_{\var{HALFSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{intermediatedata} \rightarrow addr) \\
+    \var{final} \rightarrow l := (\var{intermediatedata} \rightarrow l) \oslash 2 \\
+    \var{finalda} := \uparrow DA_{NC_{\var{WORDSIZEVALUE}}}(\var{final} \rightarrow l) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{finalda} \rightarrow addr, \\
+    \var{final} \rightarrow p, \var{final} \rightarrow l) \\
+    \begin{cases}
+        \text{如果}: \mathrm{IsGreaterOrEqual}(\var{final} \rightarrow p, \var{final} \rightarrow l, \var{n} \rightarrow addr, \var{n} \rightarrow l) \\
+        \downarrow \var{finalda} \\
+        \var{nspan} \in SPAN_{\var{WORDSIZEVALUE}} \\
+        \var{nspan} \rightarrow p := \var{n} \rightarrow addr \\
+        \var{nspan} \rightarrow l := \var{n} \rightarrow l \\
+        \var{finalda} := \mathrm{LongMod}(\var{final}, \var{nspan}) \\
+        \blacksquare \text{将结果限制在状态数内} \\
+    \end{cases} \\
+    \mathrm{FillZero}\{ARR_{NC_{\var{WORDSIZEVALUE}}}(\var{left} \rightarrow l)\}(\var{left} \rightarrow p) \\
+    \mathrm{Copy}\{NC_{\var{WORDSIZEVALUE}}, NC_{\var{WORDSIZEVALUE}}\}(\var{left} \rightarrow p, \var{finalda} \rightarrow addr,\\ (\var{finalda} \rightarrow l) \otimes \var{WORDSIZE}) \\
+    \blacksquare \text{写入结果到数组中} \\
+\end{bmatrix}\]
+
+\subsubsection{任意状态数的数胞的除法和求余}
+
+\qquad 对于任意状态数的数胞的除法和求余，本质上是对\textbf{任意进制的长除法}的运用。
+
+\qquad 这里就不做实现，但是声明算法实现时需要注意的一些内容。
+
+\qquad 对于任意状态数的数胞的除法，要求除数不为$0$。
+如果被除数和除数都只有一位，则可以直接进行除法得到结果。
+如果被除数小于除数，结果一定为$0$。
+
+\qquad 对于任意状态数的数胞的求余，要求除数不为$0$。
+如果被除数和除数都只有一位，则可以直接进行求余得到结果。
+如果被除数小于除数，结果一定为被除数。
+
+\section{正则表达式}
+
+\subsection{基本概念}
+
+\subsubsection{字母表}
+
+\qquad 字母表是一个有限的符号集合，通常使用$\Sigma$表示。
+
+\subsubsection{字符与字符串}
+
+\qquad 字符是字母表中的元素，字符串是由字符组成的有限序列，空字符串记为$\varepsilon$。
+
+\qquad 用$\Sigma^*$表示$\Sigma$上的所有字符串的全体，包含空字符串$\varepsilon$。
+
+\subsubsection{基本运算}
+
+\qquad $\Sigma^*$的子集$\var{U}$和$\var{V}$的连接(积)定义为
+\[\var{U}\var{V} = \{\alpha \beta \mid \alpha \in \var{U} \wedge \beta \in \var{V}\}\]
+
+\qquad $\var{V}$自身的$\var{n}$次积记为
+\[\var{V}^{\var{n}} = \var{V} \var{V} \cdots \var{V} (\text{其中有}\var{n}\text{个}\var{V})\]
+
+\qquad $\var{V}^0 = \varepsilon$
+
+\qquad $\var{V}^*$是$\var{V}$的闭包，即
+\[\var{V}^* = \var{V}^0 \cup \var{V}^1 \cup \var{V}^2 \cup \cdots = \bigcup_{i=0}^{\infty} \var{V}^i\]
+
+\qquad $\var{U}\mid\var{V}$是或运算，即
+\[\var{U} \cup \var{V}\]
+
+\qquad $\sim\var{V}$是反运算，意为与$\var{V}$长度相同，但不完全与$\var{V}$相同的任意字符串，即
+\[\mid\sim\var{V}\mid = \mid\var{V}\mid \wedge \sim\var{V} \ne \var{V}\]
+
+\subsection{非确定性有限状态自动机(NFA)}
+
+\qquad 非确定性有限状态自动机是一种用于描述正则语言的计算模型。NFA在状态转移过程中允许存在不确定性，即从一个状态读取某个字符后可能转移到多个不同的状态。
+
+\subsubsection{NFA的组成成分}
+
+\qquad NFA由五个基本成分组成：
+
+\begin{enumerate}
+    \item \textbf{状态集合}：一个有限的状态集合，通常用$\var{Q}$表示。每个状态代表自动机在识别过程中的一个特定配置。
+    
+    \item \textbf{输入字母表}：一个有限的输入符号集合，通常用$\Sigma$表示。自动机只能识别属于该字母表的字符序列。
+    
+    \item \textbf{状态转移函数}：定义状态之间转移关系的函数，通常用$\delta$表示。对于NFA，转移函数的形式为：
+    \[\delta: \var{Q} \times \Sigma \rightarrow 2^{\var{Q}}\]
+    其中$2^{\var{Q}}$表示$\var{Q}$的幂集（即$\var{Q}$的所有子集的集合）。这意味着对于每个状态和输入符号的组合，NFA可以转移到多个可能的状态。
+    
+    \item \textbf{初始状态}：自动机开始运行时的起始状态，通常用$\var{q}_0 \in \var{Q}$表示。NFA可能允许多个初始状态，此时初始状态为一个状态集合。
+    
+    \item \textbf{接受状态集合}：也称为终结状态集合，通常用$\var{F} \subseteq \var{Q}$表示。当自动机处理完整个输入字符串后，如果最终处于某个接受状态，则认为该字符串被自动机接受。
+\end{enumerate}
+
+\subsubsection{形式化定义}
+
+\qquad 一个NFA可以形式化地定义为一个五元组：
+\[\var{M} = (\var{Q}, \Sigma, \delta, \var{q}_0, \var{F})\]
+其中：
+\begin{itemize}
+    \item $\var{Q}$是有限状态集合
+    \item $\Sigma$是有限输入字母表
+    \item $\delta: \var{Q} \times \Sigma \rightarrow 2^{\var{Q}}$是状态转移函数
+    \item $\var{q}_0 \in \var{Q}$是初始状态
+    \item $\var{F} \subseteq \var{Q}$是接受状态集合
+\end{itemize}
+
+\subsubsection{工作原理}
+
+\qquad NFA通过以下方式处理输入字符串：从初始状态开始，依次读取输入字符串中的每个字符，根据转移函数确定可能转移到的状态集合。由于转移的非确定性，NFA在每一步都可能处于多个状态的叠加中。当处理完整个输入字符串后，如果当前状态集合中包含至少一个接受状态，则该输入字符串被NFA接受。
+
+\subsubsection{扩展转移函数}
+
+\qquad 为了处理整个字符串而不仅仅是单个字符，需要定义扩展转移函数$\hat{\delta}: \var{Q} \times \Sigma^* \rightarrow 2^{\var{Q}}$：
+\begin{itemize}
+    \item 对于空字符串$\varepsilon$，有$\hat{\delta}(\var{q}, \varepsilon) = \{\var{q}\}$
+    \item 对于非空字符串$\var{w} = \var{xa}$（其中$\var{x} \in \Sigma^*$, $\var{a} \in \Sigma$），有：
+    \[\hat{\delta}(\var{q}, \var{w}) = \bigcup_{\var{p} \in \hat{\delta}(\var{q}, \var{x})} \delta(\var{p}, \var{a})\]
+\end{itemize}
+
+\subsubsection{语言接受性}
+
+\qquad NFA $\var{M}$接受的语言定义为所有能够使NFA从初始状态转移到某个接受状态的字符串集合：
+\[\var{L}(\var{M}) = \{\var{w} \in \Sigma^* \mid \hat{\delta}(\var{q}_0, \var{w}) \cap \var{F} \ne \emptyset\}\]
+
+\subsubsection*{NFA的特例}
+
+\qquad 在具体的实现过程中，我们偏向于实现NFA的特例，而不是完整的NFA。
+\begin{itemize}
+    \item 状态转移函数只接受单个字符。
+    \item 初始状态只有一个。
+    \item 不建议设计从一个状态读取某个字符后可能转移到多个不同的状态的NFA，因为我们打算使用占有型量词进行匹配，相关内容之后会介绍。
+\end{itemize}
+
+\subsection{匹配规则}
+
+\subsubsection{贪婪型量词匹配}
+
+\qquad 贪婪型量词匹配是正则表达式中最基本的匹配策略。采用贪婪匹配的量词会尽可能多地匹配字符，只有在后续匹配失败时才会回溯并减少匹配的字符数量。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 最大长度匹配：优先尝试匹配尽可能多的字符
+    \item 回溯机制：当后续模式无法匹配时，会回溯并尝试较短的匹配
+    \item 默认行为：多数正则表达式引擎默认采用贪婪匹配
+\end{itemize}
+
+\textbf{示例}：对于模式$a\Sigma*b$和字符串$"aabab"$
+\begin{itemize}
+    \item 贪婪匹配结果：$"aabab"$
+    \item 匹配过程：$\Sigma*$首先匹配到字符串末尾，然后回溯直到找到最后一个$b$
+\end{itemize}
+
+\subsubsection{勉强型量词匹配}
+
+\qquad 勉强型量词匹配（也称为懒惰匹配或最小匹配）与贪婪匹配相反，它会尽可能少地匹配字符，只有在后续模式需要时才会增加匹配的字符数量。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 最小长度匹配：优先尝试匹配尽可能少的字符
+    \item 渐进扩展：当后续匹配失败时，逐步增加匹配范围
+    \item 显式指定：需要通过特定语法明确指定
+\end{itemize}
+
+\textbf{示例}：对于模式$a\Sigma*b$和字符串$"aabab"$
+\begin{itemize}
+    \item 勉强匹配结果：$"aab"$
+    \item 匹配过程：$\Sigma*$在遇到第一个$b$时就停止匹配
+\end{itemize}
+
+\subsubsection{占有型量词匹配}
+
+\qquad 占有型量词匹配类似于贪婪匹配，但一旦匹配成功就不会进行回溯，即使后续模式匹配失败也不会释放已匹配的字符。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 无回溯匹配：匹配成功后不会释放已占有的字符
+    \item 性能优化：避免回溯过程，提高匹配效率
+    \item 严格匹配：一旦匹配失败就立即返回失败结果
+\end{itemize}
+
+\textbf{示例}：对于模式$a\Sigma*b$和字符串$"aabab"$
+\begin{itemize}
+    \item 占有匹配结果：匹配失败
+    \item 匹配过程：$\Sigma*$匹配所有剩余字符，不释放给后面的$b$匹配
+\end{itemize}
+
+\subsubsection{三种匹配规则对比}
+
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{特性} & \textbf{贪婪匹配} & \textbf{勉强匹配} & \textbf{占有匹配} \\
+\hline
+匹配原则 & 尽可能多 & 尽可能少 & 尽可能多（不回溯） \\
+\hline
+回溯行为 & 有回溯 & 有回溯 & 无回溯 \\
+\hline
+性能 & 中等 & 中等 & 较高 \\
+\hline
+适用场景 & 默认情况 & 需要精确匹配 & 性能敏感场景 \\
+\hline
+\end{tabular}
+
+\qquad 这三种匹配规则为正则表达式提供了灵活的匹配策略，可以根据具体需求选择合适的匹配方式，在匹配精度和性能之间取得平衡。
+但是在拟态语言中，为了安全性和效率，我们通常只使用NFA的特例配上占有匹配。
+
+\subsection{转义字符}
+
+\subsubsection{转义字符的基本概念}
+
+\qquad 转义字符是一种特殊的字符序列，用于表示那些在正则表达式中具有特殊含义的字符的字面值，或者表示不可见的控制字符。转义字符通常以反斜杠（\textbackslash）开头，后跟一个或多个字符。
+
+\subsubsection{反斜杠的转义规则}
+
+\qquad 反斜杠在正则表达式中具有双重作用：
+
+\begin{itemize}
+    \item \textbf{消除元字符的特殊含义}：当反斜杠置于元字符之前时，会取消其特殊含义，使其作为普通字符匹配
+    \item \textbf{赋予普通字符特殊含义}：当反斜杠置于某些普通字符之前时，会赋予其特殊的匹配功能
+\end{itemize}
+
+\textbf{示例}：
+\begin{itemize}
+    \item \verb|\.| 匹配字面意义的点号（取消\verb|.|的通配含义）
+    \item \verb|\n| 匹配换行符（赋予\verb|n|特殊含义）
+\end{itemize}
+
+\subsubsection{ASCII码中的转义字符}
+
+\qquad 以下是正则表达式中常用的ASCII转义字符：
+
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{转义序列} & \textbf{ASCII值} & \textbf{含义} \\
+\hline
+\verb|\a| & 0x07 & 响铃符（BEL） \\
+\hline
+\verb|\b| & 0x08 & 退格符（BS） \\
+\hline
+\verb|\t| & 0x09 & 水平制表符（TAB） \\
+\hline
+\verb|\n| & 0x0A & 换行符（LF） \\
+\hline
+\verb|\v| & 0x0B & 垂直制表符（VT） \\
+\hline
+\verb|\f| & 0x0C & 换页符（FF） \\
+\hline
+\verb|\r| & 0x0D & 回车符（CR） \\
+\hline
+\verb|\e| & 0x1B & 转义符（ESC） \\
+\hline
+\verb|\0| & 0x00 & 空字符（NUL） \\
+\hline
+\end{tabular}
+
+\subsubsection{八进制和十六进制转义}
+
+\qquad 除了预定义的转义序列外，还可以使用数值转义：
+
+\begin{itemize}
+    \item \textbf{八进制转义}：\verb|\ddd|（1-3位八进制数字）
+    \item \textbf{十六进制转义}：\verb|\xhh|（2位十六进制数字）或\verb|\x{hhhh}|（1-4位十六进制数字）
+\end{itemize}
+
+\textbf{示例}：
+\begin{itemize}
+    \item \verb|\101| 匹配字符'A'（八进制65）
+    \item \verb|\x41| 匹配字符'A'（十六进制41）
+\end{itemize}
+
+在拟态语言的正则表达式中，默认不使用八进制和十六进制转义。
+
+\subsubsection{无法转义字符的处理}
+
+\qquad 当反斜杠后接的字符不属于任何预定义的转义序列，且该字符本身也不具有特殊含义时，反斜杠将被忽略，后面的字符将按原义进行匹配。
+
+\textbf{示例}：
+\begin{itemize}
+    \item \verb|\a| 匹配响铃符（有效转义）
+    \item \verb|\q| 匹配字符\verb|q|（无效转义，按原义处理）
+    \item \verb|\@| 匹配字符\verb|@|（非元字符，按原义处理）
+\end{itemize}
+
+\qquad 这种设计确保了向后兼容性，即使未来引入新的转义序列，现有的模式也不会被破坏。在实际使用中，建议只对具有特殊含义的字符进行转义，以避免混淆。
+
+\subsection{表达式中的字符标记}
+
+\qquad 首先，对正则表达式$R$中的每个字面字符出现进行标记，使每个出现具有唯一的位置索引。
+假设正则表达式$R$由字母表$\Sigma$中的字符、特殊字符（如操作符$\mid, *$等）和空表达式$\varepsilon$组成。
+我们只关注字面字符（非特殊字符）的出现。
+
+\qquad 定义$P$为$R$中所有字面字符出现的集合。每个出现$p \in P$具有：
+\begin{itemize}
+    \item 字符$c(p) \in \Sigma$（即该位置对应的字面字符）。
+    \item 唯一位置索引$i(p)$（默认从左到右按顺序编号）。
+\end{itemize}
+
+例如，对于正则表达式 $R = \text{"aa*b"}$，字面字符出现为：位置1的'a'、位置2的'a'、位置3的'b'、'*'由于是特殊字符(闭包运算)不计入其中。
+因此，$P = \{p_1, p_2, p_3\}$，其中$c(p_1) = 'a', c(p_2) = 'a', c(p_3) = 'b'$。
+
+\qquad 注意，对于反斜杠与其紧接字符形成的转义或原义组合，将其视为一个字面字符。
+反运算紧接一个普通的字面字符，将其视为一个反字面字符，是字面字符的一种特例。
+
+\subsection{状态节点}
+
+\qquad 基于标记的字符出现，定义状态节点集合$Q$。每个状态节点对应一个字符出现或用于控制流程（如开始状态）。状态节点有唯一ID和类型。
+\begin{itemize}
+    \item 令$Q = \{ q_p \mid p \in P \} \cup \{ q_0 \}$，其中$q_0$是开始状态。
+    \item 每个状态节点$q_p$（对于$p \in P$）有三个成员：
+    \begin{itemize}
+        \item 转移字符：即$c(p)$，表示进入该状态时需要匹配的字符。
+        \item 状态类型：例如普通字符匹配，用于非反字面字符$c(p)$。任意字符匹配。空转移，用于$\varepsilon$转移的状态。反字符匹配，用于反字面字符$c(p)$。
+        \item 连接的其他状态节点引用：即从该状态出发的转移目标列表。
+    \end{itemize}
+    \item 状态节点$q_0$是开始状态，没有转移字符（空转移）。
+\end{itemize}
+
+\subsection{构建规则}
+
+\qquad 接下来我们需要将正则表达式字面量构建成NFA，我们需要定义一些构建规则，以指导构建的过程。
+
+\qquad 首先，对于$q_1, q_2 \in Q$，如果$i(q_1) + 1 = i(q_2)$，则$\exists \delta(q_1, c(q_2)) = q_2$。
+
+\qquad 对于$q_1, q_2, q_3 \in Q$，如果$i(q_1) + 1 = i(q_2), i(q_2) + 1 = i(q_3)$，且$\delta(q_1, \varepsilon) = q_2$，
+则$\exists \delta(q_1, c(q_3)) = q_3$。
+
+\qquad 对于或运算$R_1 | R_2 | \cdots | R_n$，定义以下构建规则：
+
+状态定义：
+\begin{itemize}
+    \item 设$q_{start}^{R_i}$为分支$R_i$的起始状态
+    \item 设$q_{end}^{R_i}$为分支$R_i$的结束状态
+    \item 设$Q^{or}$为进入或运算$R$的所有前驱状态的集合
+    \item 设$Q_f^{or}$为或运算$R$的所有后继状态的集合
+    \item 接下来默认小写变量为字符，大写变量为字符串。
+    \item 对于表达式$R = aA$，且$a$对应的状态为$q_a$，则$q_{start}^{R} = q_a$
+    \item 对于表达式$R = Aa$，且$a$对应的状态为$q_a$，$q_{end}^{R} = q_a$
+    \item 对于表达式$R = aA | bB | \cdots | nN$，且$a,b,\cdots,n$对应的状态为$q_a,q_b,\cdots,q_n$，$q_{start}^{R} \in \{q_a,q_b,\cdots,q_n\}$
+    \item 对于表达式$R = Aa | Bb | \cdots | Nn$，且$a,b,\cdots,n$对应的状态为$q_a,q_b,\cdots,q_n$，$q_{end}^{R} \in \{q_a,q_b,\cdots,q_n\}$
+\end{itemize}
+
+起始状态集合确定：
+\begin{itemize}
+    \item 如果$R$是顶层表达式，则$Q^{or} = \{q_0\}$，其中$q_0$是整个NFA的起始状态
+    \item 如果$R$出现在连接运算$P \cdot R$中，则$Q^{or} = \{q_{end}^P\}$
+    \item 如果$R$出现在或运算$(\cdots | R | \cdots)$中，则$Q^{or}$为该或运算的前驱状态集合
+\end{itemize}
+
+结束状态集合确定：
+\begin{itemize}
+    \item 如果$R$是顶层表达式，则$Q_f^{or}$是NFA的结束状态
+    \item 如果$R$出现在连接运算$R \cdot S$中，则$Q_f^{or} = \{q_{start}^S\}$
+    \item 如果$R$出现在或运算$(\cdots | R | \cdots)$中，则$Q_f^{or}$为该或运算的后继状态集合
+\end{itemize}
+
+转移函数定义：
+\begin{align*}
+    &\forall i \in \{1, 2, \ldots, n\}, \forall q^{or} \in Q^{or}, \exists \delta(q^{or}, c(q_{start}^{R_i})) = q_{start}^{R_i} \\
+    &\forall i \in \{1, 2, \ldots, n\}, \forall q_f^{or} \in Q_f^{or}, \exists \delta(q_{end}^{R_i}, c(q_f^{or})) = q_f^{or}
+\end{align*}
+
+\end{document}
