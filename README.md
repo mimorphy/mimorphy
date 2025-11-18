@@ -2,11 +2,11 @@
 
 ## 项目愿景
 
-Mimorphy 是一个**概念性编程语言设计项目**，目前处于设计和规划阶段。
+Mimorphy(拟态语言) 是一个**概念性编程语言设计项目**，目前处于设计和规划阶段。
 
 ## 设计目标
 
-**Mimorphy - 具备无限语法和语义抽象能力的编程语言构想。通过模拟多态性重新定义代码形态学。**
+**拟态语言 - 具备无限语法和语义抽象能力的编程语言构想。通过模拟多态性重新定义代码形态学。**
 
 *Mimorphy - The conceptual programming language with unlimited syntax and semantic abstraction capabilities. Redefining code morphology through mimetic polymorphism (envisioned).*
 
