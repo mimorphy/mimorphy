@@ -13,7 +13,7 @@ class state_transition;
 // - ANY (任意) 表示转移到该状态所需要匹配的字符可以是字母表中的任意一个字符。
 enum class state_transition_type
 {
-    DEFAULT, EPSILON_TRANSITION, ANY, VIRTUAL_TRANSFER
+    DEFAULT, EPSILON_TRANSITION, ANY, VIRTUAL_TRANSFER, TRANSFER
 };
 
 // 状态节点的定义，包括三个成员：
