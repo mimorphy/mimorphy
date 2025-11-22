@@ -26,6 +26,7 @@ static bool check_validity(str_view& expression, NFA& nfa);
 static void left_bracket(str_view expression, sizevalue& current_index, building_context& context);
 static void right_bracket(str_view expression, sizevalue& current_index, building_context& context);
 static void expression_or(str_view expression, sizevalue& current_index, building_context& context);
+static bool is_last(str_view expression, sizevalue index, character c);
 static void connect_predecessors_and_successors(building_context& context);
 static void expand_virtual_transition(building_context& context);
 
@@ -234,8 +235,8 @@ static void left_bracket(str_view expression, sizevalue& current_index, building
 static void right_bracket(str_view expression, sizevalue& current_index, building_context& context)
 {
     runtime_assert(current_index > 0, "禁止在表达式开头使用右括号");
-    runtime_assert(expression[current_index - 1] != STR("(")[0], "禁止在表达式中出现内容为空的一对括号\"()\"");
-    runtime_assert(expression[current_index - 1] != STR("|")[0], "禁止在表达式中出现无效的或运算\"...|)\"");
+    runtime_assert(!is_last(expression, current_index - 1, STR("(")[0]), "禁止在表达式中出现内容为空的一对括号\"()\"");
+    runtime_assert(!is_last(expression, current_index - 1, STR("|")[0]), "禁止在表达式中出现无效的或运算\"...|)\"");
     runtime_assert(!context.index_of_successors_state_transitions.empty(), "禁止在表达式中使用不成对的右括号");
 
     // 如果满足以下条件，说明或运算及其作用域的末尾之间存在空字符串，那么消除空字符串的影响
@@ -273,8 +274,8 @@ static void right_bracket(str_view expression, sizevalue& current_index, buildin
 static void expression_or(str_view expression, sizevalue& current_index, building_context& context)
 {
     runtime_assert(current_index > 0, "禁止在表达式开头使用或运算");
-    runtime_assert(expression[current_index - 1] != STR("(")[0], "禁止在表达式中出现无效的或运算\"(|...\"");
-    runtime_assert(expression[current_index - 1] != STR("|")[0], "禁止在表达式中出现无效的或运算\"...||...\"");
+    runtime_assert(!is_last(expression, current_index - 1, STR("(")[0]), "禁止在表达式中出现无效的或运算\"(|...\"");
+    runtime_assert(!is_last(expression, current_index - 1, STR("|")[0]), "禁止在表达式中出现无效的或运算\"...||...\"");
     // 如果满足以下条件，说明进行或操作的左表达式是一个空字符串，那么无视这次或操作
     if (context.index_of_successors_state_transitions.back().size() > 1) {
         auto& index_of_successor_state_transitions = context.index_of_successors_state_transitions.back();
@@ -316,6 +317,24 @@ static void expression_or(str_view expression, sizevalue& current_index, buildin
         }
         context.number_of_nested_of_or_operation += 1;
     }
+}
+
+// 逻辑规范：
+// 前置条件：index < expression.size()
+// 后置条件：输出 expression[index] 是否是未转义的 c
+static bool is_last(str_view expression, sizevalue index, character c)
+{
+    if (expression[index] != c) {
+        return false;
+    }
+    bool is_escape = false;
+    for (sizevalue i = index - 1; i != sizevalue_max; --i) {
+        if (expression[i] != STR("\\")[0]) {
+            break;
+        }
+        is_escape = !is_escape;
+    }
+    return !is_escape;
 }
 
 // 逻辑规范：
