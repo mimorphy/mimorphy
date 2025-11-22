@@ -1339,39 +1339,76 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
 \qquad 对于$q_1, q_2, q_3 \in Q$，如果$i(q_1) + 1 = i(q_2), i(q_2) + 1 = i(q_3)$，且$\delta(q_1, \varepsilon) = q_2$，
 则$\exists \delta(q_1, c(q_3)) = q_3$。
 
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+设表达式$R_0$
+\begin{itemize}
+    \item 设$q_{start}^{R_0}$为分支$R_0$的起始状态
+    \item 设$q_{end}^{R_0}$为分支$R_0$的结束状态
+\end{itemize}
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
 \qquad 对于或运算$R_1 | R_2 | \cdots | R_n$，定义以下构建规则：
 
 状态定义：
 \begin{itemize}
-    \item 设$q_{start}^{R_i}$为分支$R_i$的起始状态
-    \item 设$q_{end}^{R_i}$为分支$R_i$的结束状态
     \item 设$Q^{or}$为进入或运算$R$的所有前驱状态的集合
     \item 设$Q_f^{or}$为或运算$R$的所有后继状态的集合
     \item 接下来默认小写变量为字符，大写变量为字符串。
     \item 对于表达式$R = aA$，且$a$对应的状态为$q_a$，则$q_{start}^{R} = q_a$
     \item 对于表达式$R = Aa$，且$a$对应的状态为$q_a$，$q_{end}^{R} = q_a$
-    \item 对于表达式$R = aA | bB | \cdots | nN$，且$a,b,\cdots,n$对应的状态为$q_a,q_b,\cdots,q_n$，$q_{start}^{R} \in \{q_a,q_b,\cdots,q_n\}$
-    \item 对于表达式$R = Aa | Bb | \cdots | Nn$，且$a,b,\cdots,n$对应的状态为$q_a,q_b,\cdots,q_n$，$q_{end}^{R} \in \{q_a,q_b,\cdots,q_n\}$
+    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$R_1, R_2, \cdots, R_n$均不为空字符串，有$q_{start}^{R} \in \{q_{start}^{R_1},q_{start}^{R_2},\cdots,q_{start}^{R_n}\}$
+    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$R_1, R_2, \cdots, R_n$均不为空字符串，有$q_{end}^{R} \in \{q_{end}^{R_1},q_{end}^{R_2},\cdots,q_{end}^{R_n}\}$
 \end{itemize}
 
 起始状态集合确定：
 \begin{itemize}
     \item 如果$R$是顶层表达式，则$Q^{or} = \{q_0\}$，其中$q_0$是整个NFA的起始状态
-    \item 如果$R$出现在连接运算$P \cdot R$中，则$Q^{or} = \{q_{end}^P\}$
+    \item 如果$R$出现在连接运算$P \cdot R$中，且$P \ne \varepsilon$，则$Q^{or} = \{q_{end}^P\}$
     \item 如果$R$出现在或运算$(\cdots | R | \cdots)$中，则$Q^{or}$为该或运算的前驱状态集合
+    \item 如果$R$出现在闭包运算$R^* = (RS)*$中，则$Q^{or} = q_{end}^{R^*}$
 \end{itemize}
 
 结束状态集合确定：
 \begin{itemize}
     \item 如果$R$是顶层表达式，则$Q_f^{or}$是NFA的结束状态
-    \item 如果$R$出现在连接运算$R \cdot S$中，则$Q_f^{or} = \{q_{start}^S\}$
+    \item 如果$R$出现在连接运算$R \cdot S$中，且$S \ne \varepsilon$，则$Q_f^{or} = \{q_{start}^S\}$
     \item 如果$R$出现在或运算$(\cdots | R | \cdots)$中，则$Q_f^{or}$为该或运算的后继状态集合
+    \item 如果$R$出现在闭包运算$R^* = (PR)*$中，则$Q_f^{or} = q_{start}^{R^*}$
 \end{itemize}
 
-转移函数定义：
+起始状态与结束状态之间的转移函数定义：
 \begin{align*}
     &\forall i \in \{1, 2, \ldots, n\}, \forall q^{or} \in Q^{or}, \exists \delta(q^{or}, c(q_{start}^{R_i})) = q_{start}^{R_i} \\
     &\forall i \in \{1, 2, \ldots, n\}, \forall q_f^{or} \in Q_f^{or}, \exists \delta(q_{end}^{R_i}, c(q_f^{or})) = q_f^{or}
+\end{align*}
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+\qquad 对于闭包运算$R_0*$，定义以下构建规则：
+
+状态定义：
+\begin{itemize}
+    \item $(\varepsilon)* = \varepsilon$，以下的$R_0 \ne \varepsilon$
+    \item 对于表达式$R = (R_0)*S$，且$S \ne \varepsilon$，有$q_{start}^{R} \in \{q_{start}^{R_0}\} \cup \{q_{start}^{S}\}$
+    \item 对于表达式$R = P(R_0)*$，且$P \ne \varepsilon$，有$q_{end}^{R} \in \{q_{end}^{R_0}\} \cup \{q_{end}^{P}\}$
+    \item 对于表达式$R = (R_0)* | \cdots$，且$Q_f^{or}$为$R$所在的或运算的所有后继状态的集合，则$q_{start}^{R} \in \{q_{start}^{R_0}\} \cup Q_f^{or}$
+    \item 对于表达式$R = \cdots | (R_0)*$，且$Q^{or}$为$R$所在的或运算的所有前驱状态的集合，则$q_{end}^{R} \in \{q_{end}^{R_0}\} \cup Q^{or}$
+    \item 如果闭包运算在表达式顶层，且连接表达式的起始状态，那么起始状态存在转移路径到闭包运算的后继状态。
+    \item 如果闭包运算在表达式顶层，且连接表达式的结束状态，那么闭包运算的前驱状态存在转移路径到结束状态。
+\end{itemize}
+
+闭包运算的转移函数定义：
+\begin{align*}
+    &\forall q_{end}^{R_0}, \forall q_{start}^{R_0}, \exists \delta(q_{end}^{R_0}, c(q_{start}^{R_0})) = q_{start}^{R_0} \\
+    &R = P \cdot R_0* \cdot S, \forall q_{end}^{P}, \forall q_{start}^{S}, \exists \delta(q_{end}^{P}, c(q_{start}^{S})) = q_{start}^{S}
 \end{align*}
 
 \end{document}
