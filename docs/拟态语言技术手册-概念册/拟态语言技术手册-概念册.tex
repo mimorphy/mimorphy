@@ -1399,8 +1399,8 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
     \item $(\varepsilon)* = \varepsilon$，以下的$R_0 \ne \varepsilon$
     \item 对于表达式$R = (R_0)*S$，且$S \ne \varepsilon$，有$q_{start}^{R} \in \{q_{start}^{R_0}\} \cup \{q_{start}^{S}\}$
     \item 对于表达式$R = P(R_0)*$，且$P \ne \varepsilon$，有$q_{end}^{R} \in \{q_{end}^{R_0}\} \cup \{q_{end}^{P}\}$
-    \item 对于表达式$R = (R_0)* | \cdots$，且$Q_f^{or}$为$R$所在的或运算的所有后继状态的集合，则$q_{start}^{R} \in \{q_{start}^{R_0}\} \cup Q_f^{or}$
-    \item 对于表达式$R = \cdots | (R_0)*$，且$Q^{or}$为$R$所在的或运算的所有前驱状态的集合，则$q_{end}^{R} \in \{q_{end}^{R_0}\} \cup Q^{or}$
+    \item 对于表达式$R = \cdots | (R_0)* | \cdots$，且$Q_f^{or}$为$R$所在的或运算的所有后继状态的集合，则$q_{start}^{R} \in \{q_{start}^{R_0}\} \cup Q_f^{or}$
+    \item 对于表达式$R = \cdots | (R_0)* | \cdots$，且$Q^{or}$为$R$所在的或运算的所有前驱状态的集合，则$q_{end}^{R} \in \{q_{end}^{R_0}\} \cup Q^{or}$
     \item 如果闭包运算在表达式顶层，且连接表达式的起始状态，那么起始状态存在转移路径到闭包运算的后继状态。
     \item 如果闭包运算在表达式顶层，且连接表达式的结束状态，那么闭包运算的前驱状态存在转移路径到结束状态。
 \end{itemize}
