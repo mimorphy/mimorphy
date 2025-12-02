@@ -11,38 +11,46 @@ class state_transition;
 // - DEFAULT (默认) 表示转移到该状态所需要匹配的字符是一个默认字符，即按原义进行匹配。
 // - EPSILON_TRANSITION (空转移) 表示转移到该状态不需要匹配任何字符。
 // - ANY (任意) 表示转移到该状态所需要匹配的字符可以是字母表中的任意一个字符。
-enum class state_transition_type
-{
-    DEFAULT, EPSILON_TRANSITION, ANY, VIRTUAL_TRANSFER, TRANSFER
-};
+// 如果状态节点数据的最高位是0，那么这是一个转移节点，用于在普通节点之后表示这个普通节点拥有的转移路径。
+// 在NFA构建完成之前，默认都是虚转移节点，即能指代一组多个转移节点；在构建完成之后，才是转移节点。index()函数用于获取虚转移节点和转移节点的索引。
+namespace state_transition_type {
+    constexpr int32 DEFAULT = -1;
+    constexpr int32 EPSILON_TRANSITION = -2;
+    constexpr int32 ANY = -3;
+}
 
-// 状态节点的定义，包括三个成员：
+// 状态节点的定义，包括两个成员：
 // - transition_condition (转移条件) 转移到此状态的条件。
 // - type (类型) 此状态节点的类型，参考 state_transition_type。
-// - index_of_default_target (默认转移目标索引) 此节点默认转移到的下一个节点的索引。
 class state_transition
 {
 public:
     state_transition() = default;
     ~state_transition() = default;
-    state_transition(character _transition_condition_, state_transition_type _type_, sizevalue _index_of_default_target_) : transition_condition(_transition_condition_), type(_type_), index_of_default_target(_index_of_default_target_) {}
+    state_transition(character _transition_condition_, int32 _type_) : transition_condition(_transition_condition_), type(_type_) {}
+    state_transition(sizevalue index) : transition_condition((int32)index), type((int32)(index >> (sizeof(int32) * BYTE_LENGTH))) {}
     state_transition(const state_transition& right)
     {
         transition_condition = right.transition_condition;
         type = right.type;
-        index_of_default_target = right.index_of_default_target;
     }
     void operator=(const state_transition& right)
     {
         transition_condition = right.transition_condition;
         type = right.type;
-        index_of_default_target = right.index_of_default_target;
+    }
+    sizevalue index() const
+    {
+        return *(sizevalue*)&transition_condition;
+    }
+    bool is_transfer_transition() const
+    {
+        return *(intmax*)&transition_condition >= 0;
     }
     strong_ordering operator<=>(const state_transition& right) const = default;
 public:
     character transition_condition{};
-    state_transition_type type{};
-    sizevalue index_of_default_target{};
+    int32 type{};
 };
 
 #endif

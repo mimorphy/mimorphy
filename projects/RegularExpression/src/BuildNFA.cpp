@@ -5,11 +5,9 @@
 #include "StateTransition"
 #include "map"
 #include "functional"
-#include "algorithm"
 
 using std::map;
 using std::function;
-using std::for_each;
 
 struct building_context
 {
@@ -17,22 +15,23 @@ struct building_context
     vector<vector<state_transition>> virtual_transitions_table{};
     vector<vector<sizevalue>> index_of_predecessors_state_transitions{};
     vector<vector<sizevalue>> index_of_successors_state_transitions{};
+    vector<vector<sizevalue>> temporary_predecessors_buffer{};
+    sizevalue last_index_of_predecessors_because_epsilon;
     vector<sizevalue> predecessors_before_kleene_star{};
-    vector<sizevalue> direct_predecessors_before_kleene_star{};
-    sizevalue number_of_nested_of_or_operation{};
 };
 
 static state_transition build_state_transition(character c, bool required_escape);
 static character escape_character(character c);
-static bool check_validity(str_view& expression, NFA& nfa);
 static void left_bracket(str_view expression, sizevalue& current_index, building_context& context);
 static void right_bracket(str_view expression, sizevalue& current_index, building_context& context);
 static void expression_or(str_view expression, sizevalue& current_index, building_context& context);
 static void kleene_star(str_view expression, sizevalue& current_index, building_context& context);
 static void connect_in_kleene_star(building_context& context);
-static bool required_connect_currently_after_kleene_star(str_view expression, sizevalue index);
 static bool is_last(str_view expression, sizevalue index, character c);
+static bool is_local_epsilon(building_context& context);
 static void connect_predecessors_and_successors(building_context& context);
+static void clear_last_pair_of_predecessors_and_successors(building_context& context);
+static void connect_normal_transitions(building_context& context);
 static void expand_virtual_transition(building_context& context);
 
 map<character, function<void(str_view, sizevalue&, building_context&)>> functional_characters {
@@ -48,12 +47,10 @@ map<character, function<void(str_view, sizevalue&, building_context&)>> function
 NFA build_nfa(str_view expression)
 {
     building_context context{};
-    context.nfa = { state_transition(0, state_transition_type::VIRTUAL_TRANSFER, 0) };
+    context.nfa = { state_transition(0) };
     context.virtual_transitions_table.push_back({});
-    context.index_of_predecessors_state_transitions.push_back({ 0 }); // 前驱队列初始化时默认有两个元素
-    context.index_of_predecessors_state_transitions.push_back({});
-    context.index_of_successors_state_transitions.push_back({ 0 }); // 后继队列初始化时默认有一个元素
-    context.number_of_nested_of_or_operation = 0;
+    context.index_of_predecessors_state_transitions.push_back({ 0 }); // 前驱队列初始化
+    context.temporary_predecessors_buffer.push_back({}); // 前驱缓冲区初始化
     sizevalue i = 0;
     bool required_escape = false;
     // 主循环：正确处理转义，遇到空字符串无效处理；遇到任意字符添加对应节点；遇到功能字符以其语义进行特殊处理；否则前述皆不满足时添加状态节点
@@ -70,7 +67,8 @@ NFA build_nfa(str_view expression)
         }
         // 这个分支保证了：对于所有未被转义的"·"，当作任意字符处理
         else if (expression[i] == STR("·")[0] && !required_escape) {
-            state_transition st = { expression[i], state_transition_type::ANY, context.nfa.size() + 1 };
+            state_transition st = { expression[i], state_transition_type::ANY };
+            connect_normal_transitions(context);
             context.nfa.push_back(st);
             continue;
         }
@@ -83,20 +81,41 @@ NFA build_nfa(str_view expression)
         state_transition st = build_state_transition(expression[i], required_escape);
         // st == q_{n+1}, n 为 NFA 中当前的实义状态节点数量
         required_escape = false; // 确保转义字符成为状态节点之后，转义结束
-        st.index_of_default_target = context.nfa.size() + 1; // 所有默认字符节点默认指向自身相对于NFA中的下一个节点
+        connect_normal_transitions(context);
         context.nfa.push_back(st);
     }
     runtime_assert(!required_escape, "禁止在表达式的末尾使用无后继字符的'\\'");
-    if (context.nfa.back().type != state_transition_type::VIRTUAL_TRANSFER) {
-        context.nfa.back().index_of_default_target = sizevalue_max;
+    // 为表达式的末尾添加指向结束状态的转移路径
+    context.index_of_predecessors_state_transitions.back().insert(context.index_of_predecessors_state_transitions.back().end(), context.temporary_predecessors_buffer.front().begin(), context.temporary_predecessors_buffer.front().end());
+    for (auto& element : context.index_of_predecessors_state_transitions.back()) {
+        if (context.nfa[element].is_transfer_transition()) {
+            context.virtual_transitions_table[context.nfa[element].index()].push_back(state_transition(sizevalue_max));
+        }
+        else if (element + 1 < context.nfa.size()) {
+            if (context.nfa[element + 1].is_transfer_transition()) {
+                context.virtual_transitions_table[context.nfa[element + 1].index()].push_back(state_transition(sizevalue_max));
+            }
+            else {
+                goto last;
+            }
+        }
+        else {
+            last:
+            runtime_assert(element == context.nfa.size() - 1, "禁止为没有特殊转移路径的节点添加新的转移路径");
+            context.nfa.push_back(state_transition(sizevalue_max));
+        }
     }
-    // 为 NFA 开头的虚转移节点添加到第一个实义状态的转移路径
-    auto first_meaningful_node = std::find_if(context.nfa.begin(), context.nfa.end(), [](const state_transition& transition) { return transition.type != state_transition_type::VIRTUAL_TRANSFER; });
-    context.virtual_transitions_table[0].insert(context.virtual_transitions_table[0].begin(), state_transition(0, state_transition_type::TRANSFER, first_meaningful_node - context.nfa.begin()));
+    // 判断末尾是否为空的分支子表达式
+    if (is_local_epsilon(context)) {
+        // 如果为空且在表达式顶层
+        if (context.last_index_of_predecessors_because_epsilon != sizevalue_max) {
+            // 为起始状态添加到结束状态的转移路径
+            context.virtual_transitions_table[0].push_back(state_transition(sizevalue_max));
+            context.last_index_of_predecessors_because_epsilon = sizevalue_max;
+        }
+    }
     // 后续处理
-    connect_predecessors_and_successors(context);
     expand_virtual_transition(context);
-    // runtime_assert(check_validity(expression, context.nfa), "正则表达式\"" + variable_length(expression.data()) + "\"构建出了不等价的NFA");
     return std::move(context.nfa);
 }
 
@@ -169,47 +188,25 @@ static character escape_character(character c)
     return c;
 }
 
-// 逻辑规范：
-// 前置条件：无
-// 后置条件：将这个左括号及其对应的右括号之间的所有内容按构建规则处理，结果反映到 context 中
 static void left_bracket(str_view expression, sizevalue& current_index, building_context& context)
 {
-    // 尝试寻找上一个实义节点
-    auto it = context.nfa.end() - 1;
-    while (it->type == state_transition_type::VIRTUAL_TRANSFER && it != context.nfa.begin()) {
-        it -= 1;
+    // 如果满足以下条件，应为连续的左括号等情况，需要为 index_of_predecessors_state_transitions 添加与之前的前驱索引相同的元素
+    if (context.index_of_predecessors_state_transitions.back().empty()) {
+        context.index_of_predecessors_state_transitions.back().insert(context.index_of_predecessors_state_transitions.back().end(), (context.index_of_predecessors_state_transitions.end() - 2)->begin(), (context.index_of_predecessors_state_transitions.end() - 2)->end());
     }
-    // 如果实义节点指向它自身或者更左边的节点，说明存在闭包运算作用于这个实义节点，那么修改它的虚转移节点的转移路径
-    if (it->index_of_default_target <= it - context.nfa.begin() && it != context.nfa.begin()) {
-        it += 1;
-        context.virtual_transitions_table[it->index_of_default_target].back().index_of_default_target += 1;
-    }
-    // 当找到上一个实义节点且满足不指向结束状态时
-    else if (it->type != state_transition_type::VIRTUAL_TRANSFER && it->index_of_default_target != sizevalue_max) {
-        it->index_of_default_target += 1; // 因为被左括号分割的节点之间需要有一个虚转移节点，所以把原本指向下一个节点的索引+1，否则将错误地指向虚转移节点
-    }
-    for (sizevalue i = 0; i < context.index_of_predecessors_state_transitions.back().size(); ++i) {
-        // 同理，因为虚转移节点，前驱的转移目标的索引也要+1
-        auto& predecessor_state_transition = context.nfa[context.index_of_predecessors_state_transitions.back()[i]];
-        auto& virtual_transition = context.virtual_transitions_table[predecessor_state_transition.index_of_default_target];
-        if (!virtual_transition.empty()) {
-            virtual_transition.back().index_of_default_target += 1;
-        }
-    }
-    // 同理，当左括号的直接前驱是或运算时，将或运算添加的后继的索引+1
-    if (*(context.index_of_successors_state_transitions.back().end() - 2) == context.nfa.size()) {
-        *(context.index_of_successors_state_transitions.back().end() - 2) += 1;
-    }
-    // 前驱就是末尾，以上代码保证了所有末尾(包括记录的前驱和上一个实义节点)跳过虚转移节点，指向虚转移节点后的下一个节点
-
-    context.index_of_predecessors_state_transitions.back().push_back(context.nfa.size());
     context.index_of_predecessors_state_transitions.push_back({}); // 前驱队列在末尾添加一个元素
-    context.index_of_successors_state_transitions.push_back({ context.nfa.size() }); // 后继队列在末尾添加一个元素
+    context.index_of_successors_state_transitions.push_back({}); // 后继队列在末尾添加一个元素
     // 当进入新的括号的作用域时，之前的一组前驱(包括之前所有的前驱和左括号的直接前驱)被暂存，作用域内的前驱被放在新的一组前驱内
     // 当进入新的括号的作用域时，之前的一组后继被暂存，作用域内的后继被放在新的一组后继内
-    
-    context.nfa.push_back(state_transition(0, state_transition_type::VIRTUAL_TRANSFER, context.virtual_transitions_table.size()));
-    context.virtual_transitions_table.push_back({});
+
+    context.temporary_predecessors_buffer.push_back({}); // 前驱缓冲区随着进入新的作用域而增加一层
+
+    // 如果末尾不是虚转移节点
+    if (!context.nfa.back().is_transfer_transition()) {
+        // 添加新的虚转移节点
+        context.nfa.push_back(state_transition(context.virtual_transitions_table.size()));
+        context.virtual_transitions_table.push_back({});
+    }
 
     bool required_escape = false;
     bool finish_correctly = false;
@@ -223,42 +220,29 @@ static void left_bracket(str_view expression, sizevalue& current_index, building
             continue;
         }
         else if (expression[current_index] == STR("·")[0] && !required_escape) {
-            state_transition st = { expression[current_index], state_transition_type::ANY, context.nfa.size() + 1 };
+            state_transition st = { expression[current_index], state_transition_type::ANY };
+            connect_normal_transitions(context);
             context.nfa.push_back(st);
             continue;
         }
         else if (functional_characters.contains(expression[current_index])) {
-            functional_characters[expression[current_index]](expression, current_index, context);
             // 当满足以下条件时，说明这对括号的作用域结束了，打破循环
             if (expression[current_index] == STR(")")[0]) {
-                current_index += 1;
+                functional_characters[expression[current_index]](expression, current_index, context);
                 finish_correctly = true;
                 break;
             }
+            functional_characters[expression[current_index]](expression, current_index, context);
             continue;
         }
         state_transition st = build_state_transition(expression[current_index], required_escape);
         required_escape = false;
-        st.index_of_default_target = context.nfa.size() + 1;
+        connect_normal_transitions(context);
         context.nfa.push_back(st);
-    }
-    // 最外层的括号作用域结束时，调整索引，防止漏掉字符
-    if (current_index >= expression.size()) {
-        current_index -= 1;
-    }
-    else if (expression[current_index] != STR(")")[0]) {
-        current_index -= 1;
     }
     runtime_assert(finish_correctly, "禁止在表达式中使用不成对的左括号");
 }
 
-// 逻辑规范：
-// 前置条件：current_index > 0, !is_last(expression, current_index - 1, STR("(")[0]), !is_last(expression, current_index - 1, STR("|")[0]), !context.index_of_successors_state_transitions.empty()
-// 后置条件：正确处理括号作用域的结束
-//     context.index_of_predecessors_state_transitions.size() == N + 2, N 为此层括号作用域结束剩下的所在的括号嵌套层数
-//     context.index_of_successors_state_transitions.size() = N + 1
-//     context.number_of_nested_of_or_operation > 0 => context.number_of_nested_of_or_operation -= 1
-//     ...
 static void right_bracket(str_view expression, sizevalue& current_index, building_context& context)
 {
     runtime_assert(current_index > 0, "禁止在表达式开头使用右括号");
@@ -266,141 +250,72 @@ static void right_bracket(str_view expression, sizevalue& current_index, buildin
     runtime_assert(!is_last(expression, current_index - 1, STR("|")[0]), "禁止在表达式中出现无效的或运算\"...|)\"");
     runtime_assert(!context.index_of_successors_state_transitions.empty(), "禁止在表达式中使用不成对的右括号");
 
-    // 如果满足以下条件，说明或运算及其作用域的末尾之间存在空字符串，那么消除空字符串的影响
-    if (context.index_of_successors_state_transitions.back().size() > 1) {
-        auto& index_of_successor_state_transitions = context.index_of_successors_state_transitions.back();
-        if (index_of_successor_state_transitions.back() == context.nfa.size()) {
-            // 删除 expression_or 添加的元素
-            context.index_of_predecessors_state_transitions.back().pop_back();
-            context.index_of_successors_state_transitions.back().pop_back();
+    // 判断是否存在或运算的子表达式为空
+    if (is_local_epsilon(context)) {
+        // 如果为空，将或运算的前驱添加到 temporary_predecessors_buffer 中
+        auto last_predecessor = (context.index_of_predecessors_state_transitions.end() - 2)->back();
+        // 确保没有添加过，以防重复添加
+        if (context.last_index_of_predecessors_because_epsilon != last_predecessor) {
+            context.temporary_predecessors_buffer.back().insert(context.temporary_predecessors_buffer.back().end(), (context.index_of_predecessors_state_transitions.end() - 2)->begin(), (context.index_of_predecessors_state_transitions.end() - 2)->end());
+            context.last_index_of_predecessors_because_epsilon = last_predecessor;
         }
-    }
-    // 结算前驱队列倒数第二个元素和后继队列最后一个元素的连接
-    connect_predecessors_and_successors(context);
-
-    // 为所有新前驱预先添加转移路径
-    auto& predecessors_state_transitions = *(context.index_of_predecessors_state_transitions.end() - 1 - context.number_of_nested_of_or_operation);
-    for (sizevalue i = 0; i < predecessors_state_transitions.size(); ++i) {
-        auto& predecessor_state_transition = context.nfa[predecessors_state_transitions[i]];
-        if (context.number_of_nested_of_or_operation > 0) {
-            // 如果是连续或运算，则清空之前的转移路径，因为要使用连续或的最后一个或运算为基准
-            context.virtual_transitions_table[predecessor_state_transition.index_of_default_target].clear();
-        }
-        context.virtual_transitions_table[predecessor_state_transition.index_of_default_target].push_back(state_transition(0, state_transition_type::TRANSFER, context.nfa.size()));
+        return;
     }
 
     // 如果右括号的直接后继是闭包运算
     if (current_index + 1 < expression.size()) {
         if (expression[current_index + 1] == STR("*")[0]) {
             // 将这对括号作用域的前驱继承到下一个作用域，使用 predecessors_before_kleene_star 进行转存
-            auto& index_of_predecessor_state_transitions = *(context.index_of_predecessors_state_transitions.end() - 2 - context.number_of_nested_of_or_operation);
+            auto& index_of_predecessor_state_transitions = *(context.index_of_predecessors_state_transitions.end() - 2);
             context.predecessors_before_kleene_star.clear();
             context.predecessors_before_kleene_star.insert(context.predecessors_before_kleene_star.end(), index_of_predecessor_state_transitions.begin(), index_of_predecessor_state_transitions.end());
-            // 同时也转存这对括号作用域的直接前驱，使用 direct_predecessors_before_kleene_star 进行转存
-            auto& index_of_direct_predecessor_state_transitions = *(context.index_of_predecessors_state_transitions.end() - 2);
-            context.direct_predecessors_before_kleene_star.clear();
-            context.direct_predecessors_before_kleene_star.insert(context.direct_predecessors_before_kleene_star.end(), index_of_direct_predecessor_state_transitions.begin(), index_of_direct_predecessor_state_transitions.end());
         }
     }
 
-    context.index_of_predecessors_state_transitions.erase(context.index_of_predecessors_state_transitions.end() - 2); // 前驱队列移除倒数第二个元素
-    context.index_of_successors_state_transitions.pop_back(); // 后继队列在末尾移除一个元素
+    connect_predecessors_and_successors(context);
+    clear_last_pair_of_predecessors_and_successors(context);
 
-    // 如果在连续或运算中，减少一个连续层数
-    if (context.number_of_nested_of_or_operation > 0) {
-        context.number_of_nested_of_or_operation -= 1;
-    }
-    return;
+    // 从前驱缓冲区中取走前驱，放置在 index_of_predecessors_state_transitions 的末尾，以让作用域的后继以这些前驱作为直接前驱，同时移除一层缓冲区
+    context.index_of_predecessors_state_transitions.back().insert(context.index_of_predecessors_state_transitions.back().end(), context.temporary_predecessors_buffer.back().begin(), context.temporary_predecessors_buffer.back().end());
+    context.temporary_predecessors_buffer.pop_back();
 }
 
-// 逻辑规范：
-// 前置条件：current_index > 0, !is_last(expression, current_index - 1, STR("(")[0]), !is_last(expression, current_index - 1, STR("|")[0])
-// 后置条件：满足下文所述的所有情况
-//
-// 对于或运算 R1 | R2 | ... | Rn，如果 R 是顶层表达式，则 Q^{or} = {q0}，其中 q0 是整个 NFA 的起始状态
-//     如果 R 是顶层表达式 => context.index_of_predecessors_state_transitions.size() == 2 (由 left_bracket 和 right_bracket 严格的一添一删机制保证)
-//     => Q^{or} = {q0} (由一一对应的前驱和后继保证，context.index_of_predecessors_state_transitions[0]对应顶层的开头)
-//     => δ(q0, c(q^{Rn}_{start})) = q^{Rn}_{start} (由 connect_predecessors_and_successors 保证)
-// 如果 R 是顶层表达式，则 Q^{or}_{f} 是 NFA 的结束状态
-//     由 context.nfa.back().index_of_default_target = sizevalue_max 保证
-//     且如果 R 是顶层表达式 => q^{Rn}_{end} 不会与任何后继对应上 (由 context.index_of_predecessors_state_transitions.back() 不存在对应的后继队列保证)
-//     => q^{Rn}_{end} 只有一条转移到 NFA 的结束状态的转移路径
-// 如果 R 出现在连接运算 P·R 中，且 P != ε，则 Q^{or} = q^{P}_{end}
-//     如果 R 出现在连接运算 P·R 中 => P 和 R 之间必定出现左括号 => left_bracket 保证了 context.index_of_predecessors_state_transitions 的倒数第二个元素对应的末尾包含在 q^{P}_{end} 中
-//     同时所有前驱都将被记录在 context.index_of_predecessors_state_transitions 的倒数第二个元素中 => Q^{or} = q^{P}_{end}
-//     => δ(q^{or}, c(q^{Rn}_{start})) = q^{Rn}_{start} (由或运算正确处理开头保证)
-// 如果 R 出现在连接运算 R·S 中，且 S != ε，则 Q^{or}_{f} = q^{S}_{start}
-//     如果 R 出现在连接运算 R·S 中 => P 和 R 之间必定出现右括号 => right_bracket 保证了 context.index_of_predecessors_state_transitions 的最后一个元素是 R 的末尾集合
-//     => δ(q^{Rn}_{end}, c(q^{or}_{f})) = q^{or}_{f} (Q^{or}_{f} = q^{S}_{start} 由所有结构正确处理开头保证)
-// 如果 R 出现在或运算 (...|R|...) 中，则 Q^{or} 为该或运算的前驱状态集合；如果 R 出现在或运算 (...|R|...) 中，则 Q^{or}_{f} 为该或运算的后继状态集合
-//     由：如果是连续或运算，则使用最外层作用域的前驱队列 保证，由 expression_or 中和 right_bracket 中严格的 context.number_of_nested_of_or_operation 控制机制保证
-// 如果 R 出现在闭包运算 R^∗ = (RS)∗ 中，则 Q^{or} = q^{R^*}_{end}；如果 R 出现在闭包运算 R^∗ = (PR)∗ 中，则 Q^{or}_{f} = q^{R^*}_{start}
-//     由闭包运算的规则：闭包运算的转移函数定义 保证
 static void expression_or(str_view expression, sizevalue& current_index, building_context& context)
 {
     runtime_assert(current_index > 0, "禁止在表达式开头使用或运算");
     runtime_assert(!is_last(expression, current_index - 1, STR("(")[0]), "禁止在表达式中出现无效的或运算\"(|...\"");
     runtime_assert(!is_last(expression, current_index - 1, STR("|")[0]), "禁止在表达式中出现无效的或运算\"...||...\"");
-    // 如果满足以下条件，说明进行或操作的左表达式是一个空字符串，那么无视这次或操作
-    if (context.index_of_successors_state_transitions.back().size() > 1) {
-        auto& index_of_successor_state_transitions = context.index_of_successors_state_transitions.back();
-        if (index_of_successor_state_transitions.back() == context.nfa.size()) {
+
+    // 如果最后一个节点不为虚转移节点，正常处理
+    if (!context.nfa.back().is_transfer_transition()) {
+        context.nfa.push_back(state_transition(context.virtual_transitions_table.size()));
+        context.virtual_transitions_table.push_back({});
+    }
+    // 否则判断是否存在或运算的子表达式为空
+    else if (is_local_epsilon(context)) {
+        // 如果为空且在表达式顶层
+        if (context.index_of_predecessors_state_transitions.size() < 2 && context.last_index_of_predecessors_because_epsilon != sizevalue_max) {
+            // 为起始状态添加到结束状态的转移路径
+            context.virtual_transitions_table[0].push_back(state_transition(sizevalue_max));
+            context.last_index_of_predecessors_because_epsilon = sizevalue_max;
             return;
         }
-    }
-
-    // 尝试寻找上一个实义节点
-    auto it = context.nfa.end() - 1;
-    while (it->type == state_transition_type::VIRTUAL_TRANSFER && it != context.nfa.begin()) {
-        it -= 1;
-    }
-    // 如果实义节点指向它自身或者更左边的节点，说明存在闭包运算作用于这个实义节点，那么修改它的虚转移节点的转移路径
-    if (it->index_of_default_target <= it - context.nfa.begin()  && it != context.nfa.begin()) {
-        it += 1;
-        context.virtual_transitions_table[it->index_of_default_target].back().index_of_default_target += 1;
-    }
-    // 当找到上一个实义节点且满足不指向结束状态时
-    else if (it->type != state_transition_type::VIRTUAL_TRANSFER && it->index_of_default_target != sizevalue_max) {
-        it->index_of_default_target = sizevalue_max; // 因为被或运算产生一个虚转移节点，所以把原本指向下一个节点的索引变为不指向实义节点，否则将错误地指向虚转移节点
-    }
-    for (sizevalue i = 0; i < context.index_of_predecessors_state_transitions.back().size(); ++i) {
-        // 同理，因为虚转移节点，前驱的转移目标的索引也要+1
-        auto predecessor_state_transition = context.nfa[context.index_of_predecessors_state_transitions.back()[i]];
-        auto& virtual_transition = context.virtual_transitions_table[predecessor_state_transition.index_of_default_target];
-        if (!virtual_transition.empty()) {
-            virtual_transition.back().index_of_default_target += 1;
+        // 如果为空，将或运算的前驱添加到 temporary_predecessors_buffer 中
+        auto last_predecessor = (context.index_of_predecessors_state_transitions.end() - 2)->back();
+        // 确保没有添加过，以防重复添加
+        if (context.last_index_of_predecessors_because_epsilon != last_predecessor) {
+            context.temporary_predecessors_buffer.back().insert(context.temporary_predecessors_buffer.back().end(), (context.index_of_predecessors_state_transitions.end() - 2)->begin(), (context.index_of_predecessors_state_transitions.end() - 2)->end());
+            context.last_index_of_predecessors_because_epsilon = last_predecessor;
         }
+        return;
     }
 
-    // 默认往前驱队列的元素的最后一个元素中写入，如果是连续或运算，则使用最外层作用域的前驱队列
-    (context.index_of_predecessors_state_transitions.end() - 1 - context.number_of_nested_of_or_operation)->push_back(context.nfa.size());
-    context.nfa.push_back(state_transition(0, state_transition_type::VIRTUAL_TRANSFER, context.virtual_transitions_table.size()));
-    context.virtual_transitions_table.push_back({});
-    // 默认往后继队列的元素的最后一个元素中写入，如果是连续或运算，则使用最外层作用域的后继队列
-    (context.index_of_successors_state_transitions.end() - 1 - context.number_of_nested_of_or_operation)->back() = context.nfa.size();
-    (context.index_of_successors_state_transitions.end() - 1 - context.number_of_nested_of_or_operation)->push_back(0);
-
-    // 如果或运算的后继是左括号且直接前驱不是右括号，那么形成了连续或运算，记录连续的层数
-    for (sizevalue i = current_index + 1; i < expression.size(); ++i) {
-        if (expression[i] != STR("(")[0]) {
-            break;
-        }
-        context.number_of_nested_of_or_operation += 1;
-    }
+    // 将或运算左方的子表达式的末尾添加到前驱缓冲区中
+    context.temporary_predecessors_buffer.back().insert(context.temporary_predecessors_buffer.back().end(), context.index_of_predecessors_state_transitions.back().begin(), context.index_of_predecessors_state_transitions.back().end());
+    // 截断直接前驱，使其无法直接连接到后方的节点
+    context.index_of_predecessors_state_transitions.back().clear();
 }
 
-// 逻辑规范：
-// 前置条件：current_index > 0, !is_last(expression, current_index - 1, STR("(")[0]), !is_last(expression, current_index - 1, STR("|")[0]), !is_last(expression, current_index - 1, STR("*")[0])
-// 后置条件：满足下文所述的所有情况
-//
-// 对于闭包运算 R0∗，如果R0=ε, (ε)∗ = ε
-// 对于表达式 R = (R0)∗S，且 S != ε，有 q^{R}_{start} ∈ q^{R0}_{start} ∪ q^{S}_{start}；对于表达式 R = P(R0)∗，且 P != ε，有 q^{R}_{end} ∈ q^{R0}_{end} ∪ q^{P}_{end}
-// 对于 ... (省略之后的状态定义规则)
-//     由闭包运算的规则：闭包运算的转移函数定义 保证
-// ∀q^{R0}_end}, ∀q^{R0}_{start}, ∃δ(q^{R0}_{end}, c(q^{R0}_{start})) = q^{R0}_{start}
-//     由 connect_in_kleene_star 保证
-// R = P·R0∗·S, ∀q^{P}_{end}, ∀q^{S}_{start}, ∃δ(q^{P}_{end}, c(q_^{S}_{start})) = q^{S}_{start}
-//     由 right_bracket 和 kleene_star 中对 context.predecessors_before_kleene_star 和 context.direct_predecessors_before_kleene_star 的管理保证
 static void kleene_star(str_view expression, sizevalue& current_index, building_context& context)
 {
     runtime_assert(current_index > 0, "禁止在表达式开头使用闭包运算");
@@ -414,59 +329,28 @@ static void kleene_star(str_view expression, sizevalue& current_index, building_
         if (is_last(expression, current_index, STR("ε")[0])) {
             return;
         }
-        // 因为虚转移节点，原本指向这个位置的转移路径的索引要+1
-        for (auto& transitions : context.virtual_transitions_table) {
-            if (transitions.empty()) {
-                continue;
-            }
-            if (transitions.back().index_of_default_target == context.nfa.size()) {
-                transitions.back().index_of_default_target += 1;
-            }
-        }
-        context.nfa.back().index_of_default_target = context.nfa.size() - 1;
-        context.nfa.push_back(state_transition(0, state_transition_type::VIRTUAL_TRANSFER, context.virtual_transitions_table.size()));
-        context.virtual_transitions_table.push_back({ state_transition(0, state_transition_type::TRANSFER, context.nfa.size()) });
+        context.nfa.push_back(state_transition(context.virtual_transitions_table.size()));
+        context.virtual_transitions_table.push_back({ state_transition(context.nfa.size() - 2) });
         return;
     }
     // 否则是括号作用域的闭包
 
     // 如果这个括号作用域内没有任何实义节点，直接无视 (判断NFA的最后一个节点是否是括号作用域的前驱)
-    if (context.nfa.back().type == state_transition_type::VIRTUAL_TRANSFER && context.nfa.back().index_of_default_target == context.predecessors_before_kleene_star.back()) {
+    if (context.last_index_of_predecessors_because_epsilon == context.nfa.size() - 1) {
         return;
     }
 
-    // 因为虚转移节点，原本指向这个位置的转移路径的索引要+1
-    for (auto& transitions : context.virtual_transitions_table) {
-        if (transitions.empty()) {
-            continue;
-        }
-        if (transitions.back().index_of_default_target == context.nfa.size()) {
-            transitions.back().index_of_default_target += 1;
-        }
-    }
     // 为NFA的最后一个节点，也就是括号作用域的最后一个末尾，添加虚转移节点
-    if (context.nfa.back().type != state_transition_type::VIRTUAL_TRANSFER) {
-        context.nfa.back().index_of_default_target = sizevalue_max;
+    if (!context.nfa.back().is_transfer_transition()) {
+        context.nfa.push_back(state_transition(context.virtual_transitions_table.size()));
+        context.virtual_transitions_table.push_back({});
     }
-    context.nfa.push_back(state_transition(0, state_transition_type::VIRTUAL_TRANSFER, context.virtual_transitions_table.size()));
-    context.virtual_transitions_table.push_back({});
 
     // 让作用域内的所有末尾状态拥有指向所有开头状态的转移路径
     connect_in_kleene_star(context);
 
-    // 为括号作用域的最后一个末尾节点添加到下一个节点的转移路径
-    context.virtual_transitions_table[context.nfa.back().index_of_default_target].push_back(state_transition(0, state_transition_type::TRANSFER, context.nfa.size()));
-
     // 将转存的前驱继承到下一个作用域
     context.index_of_predecessors_state_transitions.back().insert(context.index_of_predecessors_state_transitions.back().end(), context.predecessors_before_kleene_star.begin(), context.predecessors_before_kleene_star.end());
-
-    // 如果后方没有右括号进行为所有新前驱预先添加转移路径，也没有或运算或左括号用于处理继承到下一个作用域的前驱，那么直接为转存的前驱添加到下一个节点的转移路径
-    if (required_connect_currently_after_kleene_star(expression, current_index + 1)) {
-        for (auto& index : context.predecessors_before_kleene_star) {
-            auto& transitions = context.virtual_transitions_table[context.nfa[index].index_of_default_target];
-            transitions.push_back(state_transition(0, state_transition_type::TRANSFER, context.nfa.size()));
-        }
-    }
 
     context.predecessors_before_kleene_star.clear();
 }
@@ -476,18 +360,25 @@ static void kleene_star(str_view expression, sizevalue& current_index, building_
 // 后置条件：context 中前驱队列末尾的所有前驱和NFA末尾的实义节点，拥有指向以 direct_predecessors_before_kleene_star 末尾找到的所有开头和第一个开头的转移路径
 static void connect_in_kleene_star(building_context& context)
 {
+    sizevalue index_of_previous_predecessor = 0; // 闭包运算作用的作用域之前的直接前驱在NFA中的索引
+    // 推理计算 index_of_previous_predecessor
+    for (sizevalue i = context.temporary_predecessors_buffer.size() - 1; i != sizevalue_max; --i) {
+        if (!context.temporary_predecessors_buffer[i].empty()) {
+            index_of_previous_predecessor = context.temporary_predecessors_buffer[i].back();
+            break;
+        }
+    }
+    index_of_previous_predecessor = std::max(index_of_previous_predecessor, context.predecessors_before_kleene_star.back());
     // 外层循环，遍历前驱队列末尾的所有前驱
     for (auto& index_of_predecessor : context.index_of_predecessors_state_transitions.back()) {
-        auto& predecessor_state_transition = context.nfa[index_of_predecessor];
-        auto& transitions_of_predecessor = context.virtual_transitions_table[predecessor_state_transition.index_of_default_target];
+        auto& predecessor_state_transition = context.nfa[index_of_predecessor + 1];
+        auto& transitions_of_predecessor = context.virtual_transitions_table[predecessor_state_transition.index()];
         // 中间层循环，遍历作用域的直接前驱往后的虚转移节点
-        for (sizevalue i = context.direct_predecessors_before_kleene_star.back() + 1; i < context.nfa.size(); ++i) {
-            if (context.nfa[i].type != state_transition_type::VIRTUAL_TRANSFER) {
-                // 使前驱队列末尾的所有前驱拥有指向/作用域开始往后的第一个实义节点/的转移路径
-                transitions_of_predecessor.push_back(state_transition(0, state_transition_type::TRANSFER, i));
+        for (sizevalue i = index_of_previous_predecessor + 1; i < context.nfa.size(); ++i) {
+            if (!context.nfa[i].is_transfer_transition()) {
                 break;
             }
-            auto& transitions = context.virtual_transitions_table[context.nfa[i].index_of_default_target];
+            auto& transitions = context.virtual_transitions_table[context.nfa[i].index()];
             // 内层循环，遍历虚转移节点代表的所有转移节点
             for (auto& transition : transitions) {
                 // 使前驱队列末尾的所有前驱拥有指向/作用域的直接前驱往后的虚转移节点/代表的所有转移节点/的转移路径
@@ -495,34 +386,6 @@ static void connect_in_kleene_star(building_context& context)
             }
         }
     }
-    // 对NFA末尾的实义节点的虚转移节点/也遍历一次
-    auto& transitions_of_tail = context.virtual_transitions_table[context.nfa.back().index_of_default_target];
-    for (sizevalue i = context.direct_predecessors_before_kleene_star.back() + 1; i < context.nfa.size(); ++i) {
-        if (context.nfa[i].type != state_transition_type::VIRTUAL_TRANSFER) {
-            // 使NFA末尾的实义节点拥有指向/作用域开始往后的第一个实义节点/的转移路径
-            transitions_of_tail.push_back(state_transition(0, state_transition_type::TRANSFER, i));
-            break;
-        }
-        auto& transitions = context.virtual_transitions_table[context.nfa[i].index_of_default_target];
-        for (auto& transition : transitions) {
-            // 使NFA末尾的实义节点拥有指向/作用域的直接前驱往后的虚转移节点/代表的所有转移节点/的转移路径
-            transitions_of_tail.push_back(transition);
-        }
-    }
-}
-
-// 逻辑规范：
-// 前置条件：无
-// 后置条件：参考实现逻辑
-static bool required_connect_currently_after_kleene_star(str_view expression, sizevalue index)
-{
-    if (index >= expression.size()) {
-        return true;
-    }
-    if (expression[index] == STR(")")[0]) {
-        return false;
-    }
-    return !(expression[index] == STR("(")[0] || expression[index] == STR("|")[0]);
 }
 
 // 逻辑规范：
@@ -545,18 +408,83 @@ static bool is_last(str_view expression, sizevalue index, character c)
 
 // 逻辑规范：
 // 前置条件：无
+// 后置条件：判断左方是否存在作用域内的整块子表达式为空
+static bool is_local_epsilon(building_context& context)
+{
+    // 如果 context.temporary_predecessors_buffer.back().empty() 成立，例如是 "(ε|" 第一个或运算，当第一个块是 ε 时，上一个作用域的前驱指向的索引+1(即指向虚转移节点)+1(即NFA的大小)，因为中间没有任何节点
+    if (context.temporary_predecessors_buffer.back().empty()) {
+        // 当满足 context.index_of_predecessors_state_transitions.size() < 2 时说明在表达式的顶层
+        if (context.index_of_predecessors_state_transitions.size() < 2) {
+            // 此时若NFA只有初始的一个节点，那么说明表达式开头到第一个或运算之间为空
+            return context.nfa.size() == 1;
+        }
+        return ((context.index_of_predecessors_state_transitions.end() - 2)->back() + 1) + 1 == context.nfa.size();
+    }
+    // 否则，例如是 "|ε|" 第n个或运算，左方的子表达式为空，temporary_predecessors_buffer.back().back() 指向上个有实际内容的子表达式的末尾，+1(即指向虚转移节点)+1(即NFA的大小)，因为中间没有任何节点
+    return (context.temporary_predecessors_buffer.back().back() + 1) + 1 == context.nfa.size();
+}
+
+// 逻辑规范：
+// 前置条件：无
 // 后置条件：context.index_of_predecessors_state_transitions 倒数第二个元素中指向的所有的虚转移表，其中包含所有指向 context.index_of_successors_state_transitions 最后一个元素处索引的转移节点
 static void connect_predecessors_and_successors(building_context& context)
 {
     auto& nfa = context.nfa;
     auto& virtual_transitions_table = context.virtual_transitions_table;
     auto& index_of_successor_state_transitions = context.index_of_successors_state_transitions.back();
-    auto proc = [&nfa, &index_of_successor_state_transitions, &virtual_transitions_table](sizevalue index) {
-        for (sizevalue i = 0; i < index_of_successor_state_transitions.size() - 1; ++i) {
-            virtual_transitions_table[nfa[index].index_of_default_target].push_back(state_transition(0, state_transition_type::TRANSFER, index_of_successor_state_transitions[i]));
+    for (auto it = (context.index_of_predecessors_state_transitions.end() - 2)->begin(); it != (context.index_of_predecessors_state_transitions.end() - 2)->end(); ++it) {
+        for (sizevalue i = 0; i < index_of_successor_state_transitions.size(); ++i) {
+            if (nfa[*it].is_transfer_transition()) {
+                virtual_transitions_table[nfa[*it].index()].push_back(state_transition(index_of_successor_state_transitions[i]));
+            }
+            else if (*it + 1 < nfa.size()) {
+                if (nfa[*it + 1].is_transfer_transition()) {
+                    virtual_transitions_table[nfa[*it + 1].index()].push_back(state_transition(index_of_successor_state_transitions[i]));
+                }
+                else {
+                    goto last;
+                }
+            }
+            else {
+                last:
+                // *it + 1 == index_of_successor_state_transitions[i] 成立时即连接的两个节点直接相邻，此时省略转移
+                runtime_assert(*it + 1 == index_of_successor_state_transitions[i], "禁止为没有特殊转移路径的节点添加新的转移路径");
+            }
         }
-    };
-    for_each((context.index_of_predecessors_state_transitions.end() - 2)->begin(), (context.index_of_predecessors_state_transitions.end() - 2)->end(), proc);
+    }
+}
+
+static void clear_last_pair_of_predecessors_and_successors(building_context& context)
+{
+    context.index_of_predecessors_state_transitions.erase(context.index_of_predecessors_state_transitions.end() - 2);
+    context.index_of_successors_state_transitions.pop_back();
+}
+
+static void connect_normal_transitions(building_context& context)
+{
+    // 当前驱队列中没有元素，即可能被截断时
+    if (context.index_of_predecessors_state_transitions.back().empty()) {
+        // 为之前的前驱添加后继，并使前驱队列中出现元素
+        if (!context.index_of_successors_state_transitions.empty()) {
+            // 如果不在顶层，index_of_successors_state_transitions 不为空，正常连接
+            context.index_of_successors_state_transitions.back().push_back(context.nfa.size());
+            connect_predecessors_and_successors(context);
+            context.index_of_successors_state_transitions.back().pop_back();
+        }
+        else {
+            // 在顶层，index_of_predecessors_state_transitions 为空，直接使起始状态连接到这个状态
+            context.virtual_transitions_table[0].push_back(state_transition(context.nfa.size()));
+        }
+        context.index_of_predecessors_state_transitions.back().push_back(context.nfa.size());
+        return;
+    }
+    // 否则正常连接
+    context.index_of_predecessors_state_transitions.push_back({});
+    context.index_of_successors_state_transitions.push_back({});
+    context.index_of_successors_state_transitions.back().push_back(context.nfa.size()); // 添加这个节点作为上一个直接前驱的后继
+    connect_predecessors_and_successors(context);
+    clear_last_pair_of_predecessors_and_successors(context);
+    context.index_of_predecessors_state_transitions.back().push_back(context.nfa.size()); // 添加这个节点作为下一个直接后继的前驱
 }
 
 // 逻辑规范：
@@ -569,16 +497,16 @@ static void expand_virtual_transition(building_context& context)
     intmax current_offset = 0;
     for (sizevalue i = 0; i < context.nfa.size(); ++i) {
         // 处理NFA中的虚转移节点
-        if (context.nfa[i].type == state_transition_type::VIRTUAL_TRANSFER) {
-            auto& transitions = context.virtual_transitions_table[context.nfa[i].index_of_default_target];
+        if (context.nfa[i].is_transfer_transition() && context.nfa[i].index() != sizevalue_max) {
+            auto& transitions = context.virtual_transitions_table[context.nfa[i].index()];
             intmax offset_of_this = -1;
             // 如果虚转移节点修饰的节点的默认转移路径指向NFA的结束状态，则将虚转移包含的第一个转移赋给默认转移路径
             auto previous_meaningful_it = context.nfa.begin() + i;
-            while (previous_meaningful_it->type == state_transition_type::VIRTUAL_TRANSFER && previous_meaningful_it != context.nfa.begin()) {
+            while (previous_meaningful_it->is_transfer_transition() && previous_meaningful_it != context.nfa.begin()) {
                 previous_meaningful_it -= 1;
             }
             if (previous_meaningful_it != context.nfa.begin()) {
-                if (previous_meaningful_it->index_of_default_target >= context.nfa.size() && transitions.size() > 0) {
+                if (previous_meaningful_it->index() == 0 && transitions.size() > 0) {
                     offset_of_this -= 1;
                 }
             }
@@ -595,18 +523,16 @@ static void expand_virtual_transition(building_context& context)
     vector<state_transition> expanded_nfa{};
     for (sizevalue i = 0; i < context.nfa.size(); ++i) {
         // 如果是虚转移节点，进行展开处理
-        if (context.nfa[i].type == state_transition_type::VIRTUAL_TRANSFER) {
-            sizevalue index_of_virtual_transition = context.nfa[i].index_of_default_target;
+        if (context.nfa[i].is_transfer_transition() && context.nfa[i].index() != sizevalue_max) {
+            sizevalue index_of_virtual_transition = context.nfa[i].index();
             auto& virtual_transitions = context.virtual_transitions_table[index_of_virtual_transition];
-            // 如果虚转移节点修饰的节点的默认转移路径指向NFA的结束状态，则将虚转移包含的第一个转移赋给默认转移路径，剩下的再正常展开。
+            // 如果虚转移节点修饰的节点的只有到下一个直接相邻节点的转移路径，则跳过处理，采用默认连接的模式。
             auto previous_meaningful_it = context.nfa.begin() + i;
-            while (previous_meaningful_it->type == state_transition_type::VIRTUAL_TRANSFER && previous_meaningful_it != context.nfa.begin()) {
+            while (previous_meaningful_it->is_transfer_transition() && previous_meaningful_it != context.nfa.begin()) {
                 previous_meaningful_it -= 1;
             }
             if (previous_meaningful_it != context.nfa.begin()) {
-                if (previous_meaningful_it->index_of_default_target >= context.nfa.size() && virtual_transitions.size() > 0) {
-                    expanded_nfa.back().index_of_default_target = virtual_transitions.front().index_of_default_target;
-                    expanded_nfa.insert(expanded_nfa.end(), virtual_transitions.begin() + 1, virtual_transitions.end());
+                if (previous_meaningful_it - context.nfa.begin() + 1 + 1 == virtual_transitions.front().index() && virtual_transitions.size() == 1) {
                     continue;
                 }
             }
@@ -622,41 +548,12 @@ static void expand_virtual_transition(building_context& context)
 
     // 第三遍遍历，将所有的转移路径映射到新转移路径
     for (sizevalue i = 0; i < context.nfa.size(); ++i) {
-        if (context.nfa[i].index_of_default_target >= original_index_to_expanded_index.size()) {
-            context.nfa[i].index_of_default_target = sizevalue_max;
+        if (context.nfa[i].is_transfer_transition() && context.nfa[i].index() >= original_index_to_expanded_index.size()) {
+            context.nfa[i] = state_transition(sizevalue_max);
             continue; // 不处理指向结束状态的转移路径
         }
-        context.nfa[i].index_of_default_target = original_index_to_expanded_index[context.nfa[i].index_of_default_target];
+        else if (context.nfa[i].is_transfer_transition()) {
+            context.nfa[i] = state_transition(original_index_to_expanded_index[context.nfa[i].index()]);
+        }
     }
-}
-
-// 输入正则表达式字面量和NFA，判断此NFA是否对应输入的表达式，如果对应成功输出真值，反之输出假值
-static bool check_validity(str_view& expression, NFA& nfa)
-{
-    // sizevalue count_of_transition = 1; // 目前推理到的状态节点的索引
-    // bool required_escape = false;
-    // for (sizevalue i = 0; i < expression.size(); ++i) {
-    //     if (expression[i] == STR("\\")[0] && !required_escape) {
-    //         required_escape = true;
-    //         continue;
-    //     }
-    //     else if (expression[i] == STR("ε")[0] && !required_escape) {
-    //         continue;
-    //     }
-    //     else if (expression[i] == STR("·")[0] && !required_escape) {
-    //         // 判断字面量中的任意字符是否在NFA中也为任意字符的转移条件
-    //         if (nfa[count_of_transition].type != state_transition_type::ANY) {
-    //             return false;
-    //         }
-    //         count_of_transition += 1;
-    //         continue;
-    //     }
-    //     // 判断字面量中相邻的字面字符是否在NFA中也相邻
-    //     if (nfa[count_of_transition].transition_condition != required_escape ? escape_character(expression[i]) : expression[i]) {
-    //         return false;
-    //     }
-    //     required_escape = false;
-    //     count_of_transition += 1;
-    // }
-    return true;
 }

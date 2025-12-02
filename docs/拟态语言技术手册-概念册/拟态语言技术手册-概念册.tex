@@ -1334,12 +1334,7 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
 
 \qquad 接下来我们需要将正则表达式字面量构建成NFA，我们需要定义一些构建规则，以指导构建的过程。
 
-\qquad 首先，对于$q_1, q_2 \in Q$，如果$i(q_1) + 1 = i(q_2)$，则$\exists \delta(q_1, c(q_2)) = q_2$。
-
-\qquad 对于$q_1, q_2, q_3 \in Q$，如果$i(q_1) + 1 = i(q_2), i(q_2) + 1 = i(q_3)$，且$\delta(q_1, \varepsilon) = q_2$，
-则$\exists \delta(q_1, c(q_3)) = q_3$。
-
-\qquad 对于字符串$R_1 = \varepsilon, R_2$, $R_1 \cdot R_2 = R_2$；$R_2 \cdot R_1 = R_2$。
+\qquad 对于表达式$R_1 = \varepsilon$和任意的$R_2$, $R_1 \cdot R_2 = R_2$；$R_2 \cdot R_1 = R_2$。
 
 \vspace{2mm}
 \hrule
@@ -1351,9 +1346,11 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
     \item 设$q_{end}^{R_0}$为分支$R_0$的结束状态集合
 \end{itemize}
 
-\qquad 对于非空字符串$S$，若有$R_0 = (S)$，则$q_{start}^{R_0} = q_{start}^{S}$，且$q_{end}^{R_0} = q_{end}^{S}$。
+\qquad 对于表达式$R = aA$，其中$a$为字符，$A$为表达式，有$q_{start}^{R} = a$；对于表达式$R = Aa$，其中$a$为字符，$A$为表达式，有$q_{end}^{R} = a$。
 
-\qquad 对于非空字符串$P,S$，若有$R_0 = P \cdot S$，则$\forall q_s \in q_{start}^{S}, \forall q_e \in q_{end}^{P}, \exists \delta(q_e, c(q_s)) = q_s$。
+\qquad 对于非空表达式$S$，若有$R_0 = (S)$，则$q_{start}^{R_0} = q_{start}^{S}$，且$q_{end}^{R_0} = q_{end}^{S}$。
+
+\qquad 对于非空表达式$P,S$，若有$R_0 = P \cdot S$，则$\forall q_s \in q_{start}^{S}, \forall q_e \in q_{end}^{P}, \exists \delta(q_e, c(q_s)) = q_s$。
 
 \vspace{2mm}
 \hrule
@@ -1363,11 +1360,12 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
 
 状态定义：
 \begin{itemize}
-    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$R_1, R_2, \cdots, R_n$均不为空字符串，有$q_{start}^{R} = \{q_{start}^{R_1},q_{start}^{R_2},\cdots,q_{start}^{R_n}\}$
-    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$R_1, R_2, \cdots, R_n$均不为空字符串，有$q_{end}^{R} = \{q_{end}^{R_1},q_{end}^{R_2},\cdots,q_{end}^{R_n}\}$
+    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$\forall i \text{ 满足 } 1 \le i \le n, \forall R_i \ne \varepsilon$，有$q_{start}^{R_i} \in q_{start}^{R}$
+    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，且$\forall i \text{ 满足 } 1 \le i \le n, \forall R_i \ne \varepsilon$，有$q_{end}^{R_i} \in q_{end}^{R}$
     \item 对于表达式$R = P | \varepsilon | S$，或者表达式$R = \varepsilon | S$，或者表达式$R = P | \varepsilon$，有
           $((\forall q_{p}, \forall q_{R_s} \in q_{start}^{R}, \exists \delta(q_{p}, c(q_{R_s})) = q_{R_s}), (\forall q_{s}, \forall q_{R_e} \in q_{end}^{R}, \exists \delta(q_{R_e}, c(q_{s})) = q_{s}))
           \Rightarrow (\exists \delta(q_{p}, c(q_{s})) = q_{s}).$
+    \item 对于表达式$R = R_1 | R_2 | \cdots | R_n$，如果这个或运算的作用域为表达式的顶层，设$q_0$为NFA的起始状态，则$\forall q_s \in q_{start}^{R}, \exists \delta(q_0, c(q_s)) = q_s$
 \end{itemize}
 
 \vspace{2mm}
