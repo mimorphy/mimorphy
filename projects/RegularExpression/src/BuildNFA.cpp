@@ -506,7 +506,7 @@ static void expand_virtual_transition(building_context& context)
                 previous_meaningful_it -= 1;
             }
             if (previous_meaningful_it != context.nfa.begin()) {
-                if (previous_meaningful_it->index() == 0 && transitions.size() > 0) {
+                if (previous_meaningful_it - context.nfa.begin() + 1 + 1 == transitions.front().index() && transitions.size() == 1) {
                     offset_of_this -= 1;
                 }
             }
