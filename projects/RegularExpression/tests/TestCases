@@ -1,0 +1,186 @@
+#ifndef TEST_CASES
+#define TEST_CASES
+
+#include "Basic"
+#include "FixedLengthString"
+#include "StateTransition"
+#include "BuildFiniteAutomaton"
+
+const str case1 = fixed_length("abcd"); // 用于测试基础连接运算是否正常
+const str case2 = fixed_length("abε·cd"); // 用于测试空字符串和任意字符能否正常连接
+const str case3 = fixed_length("ab(cd)ef"); // 用于测试括号作用域能否正常连接
+const str case4 = fixed_length("ab|cd"); // 用于测试顶层或运算是否正常
+const str case5 = fixed_length("@(ab|cd)(12|34)!"); // 用于测试或运算的连接是否正常
+const str case6 = fixed_length("@(ab|(cd|ef))"); // 用于测试嵌套的或运算是否正常
+const str case7 = fixed_length("abcd|ε"); // 用于测试或运算和空字符串组合导致的贯穿路径是否生效
+const str case8 = fixed_length("abc*d"); // 用于测试修饰字符的闭包运算的连接是否正常
+const str case9 = fixed_length("ab(cd)*|(ef)*"); // 用于测试修饰作用域的闭包运算和或运算的组合
+const str case10 = fixed_length("(ε|ab)cd"); // 用于测试或运算和空字符串组合且空字符串前置的行为
+
+const finite_automaton expected_case1 = {
+    state_transition(1),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case2 = {
+    state_transition(1),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(0, state_transition_type::ANY),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case3 = {
+    state_transition(1),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition('e', state_transition_type::DEFAULT),
+    state_transition('f', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case4 = {
+    state_transition(2),
+    state_transition(5),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case5 = {
+    state_transition(1),
+    state_transition('@', state_transition_type::DEFAULT),
+    state_transition(4),
+    state_transition(8),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(12),
+    state_transition(15),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(12),
+    state_transition(15),
+    state_transition('1', state_transition_type::DEFAULT),
+    state_transition('2', state_transition_type::DEFAULT),
+    state_transition(17),
+    state_transition('3', state_transition_type::DEFAULT),
+    state_transition('4', state_transition_type::DEFAULT),
+    state_transition('!', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case6 = {
+    state_transition(1),
+    state_transition('@', state_transition_type::DEFAULT),
+    state_transition(5),
+    state_transition(8),
+    state_transition(11),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max),
+    state_transition('e', state_transition_type::DEFAULT),
+    state_transition('f', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case7 = {
+    state_transition(2),
+    state_transition(sizevalue_max),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case8 = {
+    state_transition(1),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(5),
+    state_transition(8),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition(5),
+    state_transition(8),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case9 = {
+    state_transition(3),
+    state_transition(11),
+    state_transition(sizevalue_max),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition(7),
+    state_transition(sizevalue_max),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(7),
+    state_transition(sizevalue_max),
+    state_transition('e', state_transition_type::DEFAULT),
+    state_transition('f', state_transition_type::DEFAULT),
+    state_transition(11),
+    state_transition(sizevalue_max)
+};
+
+const finite_automaton expected_case10 = {
+    state_transition(2),
+    state_transition(4),
+    state_transition('a', state_transition_type::DEFAULT),
+    state_transition('b', state_transition_type::DEFAULT),
+    state_transition('c', state_transition_type::DEFAULT),
+    state_transition('d', state_transition_type::DEFAULT),
+    state_transition(sizevalue_max),
+};
+
+str test_cases()
+{
+    if (expected_case1 != build_finite_automaton(case1)) {
+        return fixed_length("\"") + case1 + fixed_length("\"与预期不符");
+    }
+    if (expected_case2 != build_finite_automaton(case2)) {
+        return fixed_length("\"") + case2 + fixed_length("\"与预期不符");
+    }
+    if (expected_case3 != build_finite_automaton(case3)) {
+        return fixed_length("\"") + case3 + fixed_length("\"与预期不符");
+    }
+    if (expected_case4 != build_finite_automaton(case4)) {
+        return fixed_length("\"") + case4 + fixed_length("\"与预期不符");
+    }
+    if (expected_case5 != build_finite_automaton(case5)) {
+        return fixed_length("\"") + case5 + fixed_length("\"与预期不符");
+    }
+    if (expected_case6 != build_finite_automaton(case6)) {
+        return fixed_length("\"") + case6 + fixed_length("\"与预期不符");
+    }
+    if (expected_case7 != build_finite_automaton(case7)) {
+        return fixed_length("\"") + case7 + fixed_length("\"与预期不符");
+    }
+    if (expected_case8 != build_finite_automaton(case8)) {
+        return fixed_length("\"") + case8 + fixed_length("\"与预期不符");
+    }
+    if (expected_case9 != build_finite_automaton(case9)) {
+        return fixed_length("\"") + case9 + fixed_length("\"与预期不符");
+    }
+    if (expected_case10 != build_finite_automaton(case10)) {
+        return fixed_length("\"") + case10 + fixed_length("\"与预期不符");
+    }
+    return fixed_length("所有测试示例与预期相符！");
+}
+
+#endif

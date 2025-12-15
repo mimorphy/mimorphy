@@ -1,0 +1,16 @@
+#ifndef CONCATENATE_FINITE_AUTOMATON
+#define CONCATENATE_FINITE_AUTOMATON
+
+#include "Basic"
+#include "StateTransition"
+#include "vector"
+
+void concatenate_finite_automaton(finite_automaton& target, finite_automaton& source);
+
+finite_automaton concatenate_new_finite_automaton(finite_automaton& finite_automaton1, finite_automaton& finite_automaton2);
+
+void concatenate_expression_information(expression_information& target, expression_information& source);
+
+void join_expression_information(expression_information& target, expression_information& source);
+
+#endif

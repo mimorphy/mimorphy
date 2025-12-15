@@ -1062,7 +1062,7 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
 
 \subsubsection{字符与字符串}
 
-\qquad 字符是字母表中的元素，字符串是由字符组成的有限序列，空字符串记为$\varepsilon$。
+\qquad 字符是字母表中的元素，字符串是由字符组成的有限序列，空字符串记为$\varepsilon$，字母表中的任意字符记为$\bullet$。
 
 \qquad 用$\Sigma^*$表示$\Sigma$上的所有字符串的全体，包含空字符串$\varepsilon$。
 
@@ -1382,5 +1382,61 @@ $\otimes \var{b}^{\var{n}-1-\var{i}}$相当于在原本的数后方添加$\var{n
     \item $((\forall q_{p}, \forall q_{R_0s} \in q_{start}^{R_0}, \exists \delta(q_{p}, c(q_{R_0s})) = q_{R_0s}), (\forall q_{s}, \forall q_{R_0e} \in q_{end}^{R_0}, \exists \delta(q_{R_0e}, c(q_{d})) =\\ q_{s}))
     \Rightarrow (\exists \delta(q_{p}, c(q_{s})) = q_{s}).$
 \end{itemize}
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+\qquad 对于反运算$\sim R_0$，定义以下构建规则：
+\begin{itemize}
+    \item $\sim (\sim R_0) = \sim \sim R_0 = R_0$.
+    \item 对于$R_0 = R_1 \cdot R_2, l = |R_2|, \sim R_0 = \sim R_1 \bullet^l | R_1 \sim R_2$.
+    \item 对于$R_0 = R*, l = |R|, \sim R_0 = \sim R (\bullet^l)* | R \sim R_0$.
+    \item 对于$R_0 = R_1 | R_2 | \cdots | R_n, \sim R_0 = \mathrm{ILU}(\sim R_1, \sim R_2, \cdots, \sim R_n)$. \\
+          $\mathrm{ILU}$是一个对参数$\sim R_1, \sim R_2, \cdots, \sim R_n$取交集，但在长度上取并集的处理函数，这里不做详细解释，将在后文说明。
+\end{itemize}
+
+\subsection{具体实现}
+
+\qquad 接下来将讨论在计算机上，构建规则的具体实现细节。
+
+\subsubsection{状态节点的结构}
+
+\[\text{定义}: \var{CHARACTER}\text{为字母表中所有字符的种类数量}\]
+\[\text{定义}: \text{以}\var{TYPEVALUE}\text{为状态数的数胞在结构体中后继以}\var{CHARACTER}\text{为状态数的数胞刚好}\]
+\[\text{填充完以}\var{WORDSIZEVALUE}\text{为状态数的数胞所占的全部存储空间，且}\var{TYPEVALUE} \ge 4\]
+
+\[\begin{bmatrix}
+    \text{结构体}: MST \\
+    character \in NC_{\var{CHARACTER}} \\
+    type \in NC_{\var{TYPEVALUE}}
+\end{bmatrix}\]
+
+\[\begin{bmatrix}
+    \text{联合体}: ST \\
+    index \in SNC_{\var{WORDSIZEVALUE}} \\
+    mst \in MST
+\end{bmatrix}\]
+
+其中，$MST$代表一个有实际意义的节点，它有确定的转移条件$character$和类型$type$。
+在实际实现中，我们通过$type$的取值限定来区分一个状态节点$ST$是$MST$还是一个索引$index$，但在这里没法表现区分的方法。
+区分的方法为：如果$ST$实例中$index$是一个负数，那么这个$ST$就是一个$MST$，否则是一个索引。也就是说，$type$一旦取值，$index$就必须是负数。
+至于为什么能这么实现，因为计算机的地址的状态数为$\var{WORDSIZEVALUE}$，而$ST$满足不只占一个字节的存储空间，因此，就算计算机中的存储空间全部用于存储$ST$，数量也不会超过$\var{WORDSIZEVALUE}$的一半，
+进而，当$ST$是一个$SNC$索引时，永远不会溢出为负数，那么负数的索引就可以用于表示这个$ST$是一个$MST$了。
+
+\qquad 那么为什么需要状态节点$ST$有两种分类——$MST$和索引呢？
+我们知道$MST$就是前文所说的状态节点的标准形式，转移到此状态所需要匹配的字符$character$以及状态节点的类型$type$。
+但是，如果只有$MST$，我们无法描述NFA中一个$MST$到另一个$MST$的转移路径（使用状态节点的线性数组表示NFA）。
+因此，我们需要额外的一种类型——转移节点，用于表示不在NFA中直接相邻的两个$MST$之间的转移路径（默认两个$MST$在NFA中相邻，即之间没有任何其他节点，那么它们之间存在转移路径）。
+我们规定，一个$MST$后面如果紧接一个或一连串索引节点，那么这些索引节点都修饰这个$MST$。
+综上所述，我们使用$MST$表示实际的状态，用索引节点的索引表示它所修饰的实际状态拥有哪些转移路径（索引的含义为NFA中$MST$的索引）。
+
+\subsubsection{虚转移节点}
+
+\qquad 由于在构建过程中，有时难以判断一个$MST$之后需要多少个索引节点，而NFA又是使用数组表示，导致难以确定节点的位置安放和索引节点的索引该如何选取。
+因此，我们使用一种策略——对于可能有多个转移节点修饰的实际节点之后，我们插入一个虚转移节点，然后维护一个额外的虚转移表数组，此时虚转移节点的索引表示对应的虚转移组的索引，表中含有多个虚转移组，虚转移组含有多个转移节点。
+实际上，虚转移节点和转移节点都是索引节点，它们的数据组成是相同的。但是它们存在于不同的构建时期，因而有不同的名称。
+虚转移节点存在于构建过程中，还未整体遍历完表达式时，用于表示多个转移节点。当遍历完成后，进行展开，基于虚转移表和特定算法，将所有虚转移节点替换为它所代表的数个转移节点，同时更新索引到正确的位置。
+在这个展开过程完成之后，我们认为NFA中的所有索引节点都是转移节点，即不存在虚转移节点了。
 
 \end{document}

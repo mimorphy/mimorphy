@@ -2,8 +2,10 @@
 #define STATE_TRANSITION
 
 #include "Basic"
+#include "vector"
 #include "compare"
 
+using std::vector;
 using std::strong_ordering;
 
 class state_transition;
@@ -12,12 +14,30 @@ class state_transition;
 // - EPSILON_TRANSITION (空转移) 表示转移到该状态不需要匹配任何字符。
 // - ANY (任意) 表示转移到该状态所需要匹配的字符可以是字母表中的任意一个字符。
 // 如果状态节点数据的最高位是0，那么这是一个转移节点，用于在普通节点之后表示这个普通节点拥有的转移路径。
-// 在NFA构建完成之前，默认都是虚转移节点，即能指代一组多个转移节点；在构建完成之后，才是转移节点。index()函数用于获取虚转移节点和转移节点的索引。
+// 在自动机构建完成之前，默认都是虚转移节点，即能指代一组多个转移节点；在构建完成之后，才是转移节点。index()函数用于获取虚转移节点和转移节点的索引。
 namespace state_transition_type {
     constexpr int32 DEFAULT = -1;
     constexpr int32 EPSILON_TRANSITION = -2;
     constexpr int32 ANY = -3;
+    constexpr int32 NEGATION = -4;
 }
+
+using finite_automaton = vector<state_transition>;
+
+// 用于表示一个编译中的表达式的信息
+// - content 表示这个表达式目前拥有的状态节点
+// - index_of_tails 表示这个表达式的结尾节点的索引
+// - index_of_heads 表示这个表达式的开头节点的索引
+// - virtual_transitions_table 表示这个表达式的虚转移表 (content 中的所有索引节点目前都是虚转移节点)
+// - exists_escape_transition 表示这个表达式是否存在贯穿的转移路径 (即开头之前到结尾之后的路径)
+struct expression_information
+{
+    finite_automaton content{};
+    vector<sizevalue> index_of_tails{};
+    vector<sizevalue> index_of_heads{};
+    vector<vector<state_transition>> virtual_transitions_table{};
+    bool exists_escape_transition = false;
+};
 
 // 状态节点的定义，包括两个成员：
 // - transition_condition (转移条件) 转移到此状态的条件。
@@ -39,10 +59,12 @@ public:
         transition_condition = right.transition_condition;
         type = right.type;
     }
+    // 如果这是一个索引节点，返回它的索引
     sizevalue index() const
     {
         return *(sizevalue*)&transition_condition;
     }
+    // 判断这是否是一个索引节点
     bool is_transfer_transition() const
     {
         return *(intmax*)&transition_condition >= 0;

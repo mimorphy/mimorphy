@@ -1,12 +1,14 @@
 #include "Basic"
-#include "BuildNFA"
 #include "FixedLengthString"
-// #include "iostream"
-// #include "string"
+#include "TestCases"
+#include "iostream"
+#include "chrono"
 
 int32 main()
 {
-    NFA nfa = build_nfa(STR("A(123|(xyz)*)B").data());
-    // std::cout << std::to_string(stt.transition_condition) << std::endl;
+    auto start = std::chrono::steady_clock::now();
+    std::cout << variable_length(test_cases()) << std::endl;
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "耗时: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start) << std::endl;
 	return 0;
 }
