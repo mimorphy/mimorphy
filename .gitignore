@@ -6,7 +6,6 @@
 !/projects/
 !/projects/**
 !/docs/
-!/docs/**
 !README.md
 !LICENSE
 
@@ -14,4 +13,11 @@
 !.gitignore
 
 # 忽略特定的文件和文件夹
-**/.vscode/
+/projects/**/.vscode/
+
+# 文档的处理
+!/docs/**/*.pdf
+!/docs/**/*.tex
+!/docs/**/*.md
+!/docs/**/.vscode/
+!/docs/**/.vscode/**

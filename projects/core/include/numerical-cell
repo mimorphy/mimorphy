@@ -1,0 +1,84 @@
+#ifndef NUMERICAL_CELL
+#define NUMERICAL_CELL
+
+#include <basic>
+#include <vector>
+#include <span>
+#include <stdexcept>
+#include <cstring>
+#include <algorithm>
+
+using std::vector;
+using std::span;
+using std::weak_ordering;
+using std::invalid_argument;
+using std::memcpy;
+using std::find_if;
+
+class numerical_cell
+{
+public:
+	numerical_cell() = default;
+	~numerical_cell() = default;
+
+	numerical_cell(const vector<natmax>& upper_bound) noexcept;
+
+	numerical_cell(vector<natmax>&& upper_bound) noexcept;
+
+	template<typename T>
+	numerical_cell(T&& upper_bound, T&& value)
+	{
+		span<natmax> upper_bound_span(const_cast<natmax*>(upper_bound.data()), find_if(upper_bound.rbegin(), upper_bound.rend(), [](natmax x) { return x != 0; }).base() - upper_bound.begin());
+		span<natmax> value_span(const_cast<natmax*>(value.data()), find_if(value.rbegin(), value.rend(), [](natmax x) { return x != 0; }).base() - value.begin());
+		if (upper_bound_span.size() < value_span.size()) {
+			clear();
+			throw invalid_argument("上限不足以容纳输入值");
+		}
+		content.resize(upper_bound_span.size() * 2, 0);
+		memcpy(content.data() + upper_bound_span.size(), upper_bound_span.data(), upper_bound_span.size() * sizeof(natmax));
+		memcpy(content.data(), value_span.data(), value_span.size() * sizeof(natmax));
+		if (bad()) {
+			clear();
+			throw invalid_argument("上限不足以容纳输入值");
+		}
+	}
+
+	numerical_cell(const numerical_cell& numerical_cellright) noexcept;
+	numerical_cell(numerical_cell&& right) noexcept;
+
+	void operator=(span<natmax> right) noexcept;
+	void operator=(const numerical_cell& right) noexcept;
+	void operator=(numerical_cell&& right) noexcept;
+
+	span<natmax> value() const noexcept;
+
+	span<natmax> number_of_states() const noexcept;
+
+	bool bad() const noexcept;
+	bool empty() const noexcept { return content.empty(); }
+	void clear() noexcept { content.clear(); }
+
+	void operator+=(const numerical_cell& right) noexcept;
+	void operator-=(const numerical_cell& right) noexcept;
+	void operator*=(const numerical_cell& right) noexcept;
+	void operator/=(const numerical_cell& right);
+	void operator%=(const numerical_cell& right);
+	numerical_cell operator+(const numerical_cell& right) const noexcept;
+	numerical_cell operator-(const numerical_cell& right) const noexcept;
+	numerical_cell operator*(const numerical_cell& right) const noexcept;
+	numerical_cell operator/(const numerical_cell& right) const;
+	numerical_cell operator%(const numerical_cell& right) const;
+	bool operator==(const numerical_cell& right) const noexcept;
+	weak_ordering operator<=>(const numerical_cell& right) const noexcept;
+
+private:
+	void limit_right_value_then_increase(numerical_cell& left, const numerical_cell& right) noexcept;
+	void limit_right_value_then_decrease(numerical_cell& left, const numerical_cell& right) const noexcept;
+	void limit_right_value_then_multiply(numerical_cell& left, const numerical_cell& right) noexcept;
+public:
+	vector<natmax> content{};
+};
+
+using NC = numerical_cell;
+
+#endif

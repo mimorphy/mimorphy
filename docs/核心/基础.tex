@@ -1,0 +1,211 @@
+\documentclass[12pt,a4paper,UTF8]{ctexart}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{amsmath, amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{stmaryrd}
+
+\lstset{
+    basicstyle=\ttfamily,
+    keywordstyle=\color{blue},
+    extendedchars=false, % 关闭扩展字符支持
+    backgroundcolor=\color{gray!5},   % 浅灰色背景
+    frame=shadowbox,                  % 带阴影的边框
+    framesep=5pt,                     % 边框内边距
+    rulesepcolor=\color{gray!30},     % 边框颜色
+    rulecolor=\color{blue!60},        % 阴影颜色
+    numbers=left,                     % 行号在左侧
+    numberstyle=\color{gray},    	  % 行号样式
+    breaklines=true,                  % 自动换行
+    captionpos=b,                     % 标题位置
+    showstringspaces=false,           % 隐藏字符串中的空格
+    tabsize=2,                        % 制表符宽度
+    keywordstyle=\color{blue},        % 关键词颜色
+    commentstyle=\color{olive},       % 注释颜色
+    stringstyle=\color{red},          % 字符串颜色
+    escapeinside=``,                  % 中文兼容设置
+	keepspaces=true
+}
+
+% 定义浅灰色变量文本命令
+\definecolor{lightgray}{gray}{0.6} % 灰度值0.7(0为黑，1为白)
+
+\newcommand{\var}[1]{\textcolor{lightgray}{\mathtt{#1}}}
+
+\newcommand{\concept}[1]{\text{引用: }\textcolor{blue}{#1}}
+
+\newcommand{\prac}[1]{\textcolor{red}{#1}}
+
+% 页眉页脚设置
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\setlength{\parindent}{0pt}
+\fancyhf{}
+\fancyhead[L]{拟态语言技术手册}
+\fancyhead[R]{\thepage}
+
+% 代码高亮设置
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green},
+    stringstyle=\color{red},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    backgroundcolor=\color[RGB]{245,245,244}
+}
+
+% 标题样式
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% 封面
+\title{拟态语言技术手册\\{\small 基础}}
+\author{之恪提案}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty} % 取消标题页的页码
+
+\pagenumbering{Roman} % 使用大写罗马数字作为前置内容的页码
+\setcounter{page}{0} % 重置页码为1
+
+\maketitle
+\clearpage
+
+\tableofcontents
+\newpage
+
+\pagenumbering{arabic} % 切换到阿拉伯数字页码
+\setcounter{page}{1} % 重置页码为1
+
+\section{基础概念}
+
+\subsection{位}
+
+\qquad 位是计算机中表示信息的基本单位，在二进制计算机中，它可以表示2种状态(0和1)，以此类推，在$\var{n}$进制中，它可以表示$\var{n}$种状态(0到$\var{n}-1$)。
+
+\subsubsection{进制}
+
+\qquad 进制（进位计数制）是人为定义的通过基数规定进位规则的计数方法，其核心特征为"逢基数进一"。例如：
+\begin{itemize}
+\item 十进制：基数为10，使用0-9共10个数码，逢十进一
+\item 二进制：基数为2，使用0和1共2个数码，逢二进一
+\item 八进制：基数为8，使用0-7共8个数码，逢八进一
+\item 十六进制：基数为16，使用0-9和A-F共16个数码，逢十六进一
+\end{itemize}
+
+可以发现一个规律：$\var{n}$进制逢$\var{n}$进$1$，因此它的数码中不含$\var{n}$。例如十进制没有值为$10$的个位数，二进制没有值为$2$的个位数。
+
+\subsubsection{基于进制的计数系统}
+
+\qquad 在日常生活中，我们使用十进制计数。在十进制的计数系统中，我们把十进制数字的各个位置分为个位、十位、百位、千位...。
+我们来解析一下，已知基数为$10$，假设一个三位数的个位数字为$\var{a}$，十位数字为$\var{b}$，百位数字为$\var{c}$。
+那么它的值可以分解成$\var{a} + 10\var{b} + 100\var{c}$，也就是$1$倍的$\var{a}$、$10$倍的$\var{b}$、$10$倍的$10$倍的$\var{c}$求和。
+换言之，即$10^0\var{a} + 10^1\var{b} + 10^2\var{c}$，其中可以发现一个规律：如果从$0$开始计数，那么第$0$位就是个位，权重为$10^0=1$；第$1$位就是十位，权重为$10^1=10$；第$2$位就是百位，权重为$10^2=100$。
+
+\qquad 现在把视角换为二进制，二进制计数系统的基数为$2$，因此第$0$位的权重为$2^0=1$；第$1$位的权重为$2^1=2$；第$2$位的权重为$2^2=4$...。
+
+\qquad 现在你应该可以理解，对于任意的$\var{n}$进制，它的计数系统是如何运作的了。
+
+\subsubsection{存储空间中的计数系统}
+
+\qquad 在二进制计算机的存储空间中，一个位可以表示$0$和$1$，可以发现它和二进制计数系统的位的表示范围相同，因此，我们可以用计算机中的位代表计数系统中的位。
+例如，假设我们可以控制计算机中的$\var{n}$个位，那么我们就可以通过编码这$\var{n}$个位来表示一个$\var{n}$位的二进制数。
+通常，这$\var{n}$个位在计算机中是顺序存储的，你可以把位想象为一个小方格，它们在存储空间中是紧挨着的，排成一个长条。
+
+\qquad 现在你应该可以理解，计算机是如何表示数字的了。
+
+\subsection{字节}
+
+\qquad 字节是计算机中由多个位组成的一个单位，例如，在目前的计算机中，我们规定$8$个位组成一个字节。
+假设进制为$\var{n}$，一个字节由$\var{m}$个位组成，那么一个字节的状态数为$\var{n}^{\var{m}}$，表示范围就是$[0, \var{n}^{\var{m}} - 1]$。
+
+\subsection{地址}
+
+\qquad 地址是一个数字，每个地址都代表了计算机中某一个字节的位置。例如，地址$\var{n}$和$\var{n}+1$指向两个在存储空间中相邻的字节。
+
+\qquad 因此，如果我们要准确地在计算机中表示一个唯一的位的位置，可以使用这个位所在的字节的地址，以及它在这个字节中是第几个位来表示。
+
+\subsection{字长}
+
+\qquad 字长是衡量计算机性能的一个关键指标，它决定了计算机一次操作所能处理的数据量。
+例如，$64$位且字节为$8$位的计算机的字长就是$8$个字节，它决定了这台计算机一次操作可以处理$8$字节的数据。
+
+\qquad 因此，此计算机中大部分的操作至少都可以一次性处理$8$个字节，例如加减乘除等。
+
+\section{数胞}
+
+\textbf{开头：我们要解决什么问题？}
+
+\qquad 在前面的章节中，我们学习了比特、字节等存储单元。我们发现，无论是哪种进制的计算机，其存储单元都可以被概括为两个核心属性：
+
+\qquad 1. 该单元所能呈现的\textbf{所有可能状态的数量}（$\var{n}$）。
+
+\qquad 2. 该单元在某一时刻所处的\textbf{具体状态值}（$\var{m}$）。
+
+\qquad 为了用一种统一、简洁的数学语言来描述计算机中所有的存储空间，我们引入了“数胞”（Numerical Cell）这一抽象概念。它将帮助我们跳出二进制、十进制等具体进制的限制，从更高层面理解存储的本质。
+
+\subsection{数胞的定义与表示}
+
+一个数胞（NC）可以由一个二元组完整定义：
+\[
+NC \equiv (\var{n},\ \var{m})
+\]
+其中：
+\begin{itemize}
+    \item $\var{n}$：表示该数胞的\textbf{状态数}（Number of States）。它一般是一个大于1的自然数，决定了该存储单元能表示多少种不同的情况。它本质上对应了前文所述的“进制”概念。
+    \item $\var{m}$：表示该数胞的\textbf{值}（Value）。它是该存储单元在当前时刻的具体状态，是一个自然数，且必须满足 $0 \leq \var{m} < \var{n}$。
+\end{itemize}
+
+\subsection{数胞的简写符号}
+
+为了书写方便，我们定义了一套简写符号：
+\begin{itemize}
+    \item \textbf{$NC$}：数胞（Numerical Cell）的通用缩写。
+    \item \textbf{$NC_{\var{n}}$}：表示所有状态数为$\var{n}$的同一类型数胞的集合。它强调了存储单元的“类型”或“容量”。
+    \item \textbf{$NC_{\var{n}}(\var{m})$}：表示一个状态数为$\var{n}$，且当前值为$\var{m}$的特定数胞。这是最完整的表示形式，同时包含了存储单元的属性和当前状态。
+\end{itemize}
+
+\textbf{示例}：
+\begin{itemize}
+    \item $NC_2(1)$：表示一个状态数为2（即二进制）、当前值为1的数胞。这其实就是我们熟悉的一个比特（Bit），其值为1。
+    \item $NC_{256}(65)$：表示一个状态数为256、当前值为65的数胞。这恰好可以表示一个值为65的字节（Byte），因为一个8位二进制字节有$2^8=256$种状态。
+    \item $NC_{10}(7)$：表示一个状态数为10（即十进制）、当前值为7的数胞。这可以想象为一个十进制的基本存储单元。
+\end{itemize}
+
+\subsection{数胞的抽象意义}
+
+“计算机中所有的存储空间都可以抽象为一个数胞。” 这句话的含义是：无论存储空间的实际物理实现如何，我们都可以用数胞的二元组模型$(\var{n},\ \var{m})$来刻画它。
+
+\begin{itemize}
+    \item \textbf{若一个存储单位可以表示$\var{N}$个状态}：这意味着它的“类型”是$NC_{\var{N}}$。
+    \item \textbf{且其当前值为$\var{M}$}：这意味着它的当前状态是$\var{M}$，且$0 \leq \var{M} < \var{N}$。
+    \item \textbf{那么它可以被数胞$NC_{\var{N}}(\var{M})$表示}：这个数胞的表示完全捕获了该存储单元的核心信息。
+\end{itemize}
+
+数胞的抽象威力在于其通用性。它不关心底层是二进制电路、三进制器件还是其他任何物理实现，它只关心逻辑上的状态数量和一个具体的状态值。这使得我们可以在统一的框架下讨论不同架构的计算机存储问题。
+
+\subsection{状态数公式的再现}
+
+一个由$\var{k}$个$NC_{\var{n}}$类型的数胞连续组成的存储空间，其总状态数正是我们熟悉的公式：
+\[
+\text{总状态数} = \var{n}^{\var{k}}
+\]
+这个公式解释了为什么一个由8个$NC_2$（比特）组成的字节($\var{n}=2, \var{k}=8$)有256种状态($2^8$)，也解释了一个由2个$NC_{10}$（十进制单元）组成的存储空间有100种状态($10^2$)。
+
+\end{document}

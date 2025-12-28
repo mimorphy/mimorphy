@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(lldb) Launch",
+            "preLaunchTask": "clang++ build active file",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test.exe",
+            "terminal": "integrated",
+            "cwd": "${workspaceFolder}/build/",
+            "args": [
+                
+            ]
+        }
+    ]
+}

@@ -1,0 +1,66 @@
+{
+    // ============================================
+    // C/C++ 配置文件说明
+    // 文件: .vscode/c_cpp_properties.json
+    // ============================================
+    
+    "configurations": [
+    {
+        // 配置名称：用于标识此配置
+        // 常用选项：
+        //   - "Linux"       Linux 开发环境
+        //   - "Win32"       Windows 32位
+        //   - "Win64"       Windows 64位
+        //   - "macOS"       macOS 开发环境
+        //   - "WSL"         Windows Subsystem for Linux
+        //   - "Custom"      自定义环境
+        "name": "请在此处输入配置名称",
+        
+        // 包含路径：编译器查找头文件的路径
+        // 通配符说明：
+        //   - ** 匹配任意子目录
+        //   - *  匹配当前目录文件
+        // 变量说明：
+        //   - ${workspaceFolder} 工作区根目录
+        //   - ${workspaceFolder}/** 工作区所有子目录
+        "includePath": [
+            "${workspaceFolder}/**"  // 工作区所有文件
+            // 请修改为您的头文件路径
+        ],
+        
+        // 预处理器宏定义
+        // 格式："宏名称" 或 "宏名称=值"
+        // 平台相关宏示例：
+        //   - Windows: ["WIN32", "_WINDOWS", "_DEBUG"]
+        //   - Linux:   ["LINUX", "__linux__", "_GNU_SOURCE"]
+        //   - macOS:   ["MACOS", "__APPLE__", "__MACH__"]
+        "defines": [
+            "请在此处添加宏定义",
+            "例如: DEBUG=1",
+            "例如: FEATURE_ENABLED"
+        ],
+        
+        // 编译器路径 (即安装的 LLVM 的路径下的 bin/clang++ 程序的路径)
+        "compilerPath": "请在此处输入编译器完整路径",
+        
+        // C 语言标准
+        // 可选值: "c89", "c99", "c11", "c17", "c2x"
+        "cStandard": "请选择C标准 (推荐: c17)",
+        
+        // C++ 语言标准
+        // 可选值: "c++98", "c++11", "c++14", "c++17", "c++20", "c++23"
+        "cppStandard": "请选择C++标准 (推荐: c++20)",
+        
+        // IntelliSense 模式
+        // 根据平台和编译器选择：
+        //   - Linux GCC:     "linux-gcc-x64"
+        //   - Linux Clang:   "linux-clang-x64"
+        //   - Windows MSVC:  "windows-msvc-x64"
+        //   - Windows GCC:   "windows-gcc-x64"
+        //   - macOS:         "macos-clang-x64"
+        // 我们使用 xxx-clang-x64
+        "intelliSenseMode": "请根据平台选择IntelliSense模式"
+        }
+    ],
+    "version": 4
+}

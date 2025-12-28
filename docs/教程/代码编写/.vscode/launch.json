@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(lldb) Launch",
+            "preLaunchTask": "clang++ build active file",
+            "type": "lldb",
+            "request": "launch",
+            "program": "请输入这个项目生成的可执行文件的路径，例如 ${workspaceFolder}/build/test.exe",
+            "terminal": "integrated",
+            "cwd": "请输入这个项目生成的可执行文件执行时的工作目录，最好与可执行文件同目录，例如 ${workspaceFolder}/build/",
+            "args": [
+                "传递给程序的参数(一般为空)，例如：",
+                "参数1"
+            ]
+        }
+    ]
+}

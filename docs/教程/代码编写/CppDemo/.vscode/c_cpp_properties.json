@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "请在此处输入配置名称",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                
+            ],
+            "compilerPath": "请在此处输入编译器完整路径",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "请根据平台选择IntelliSense模式"
+        }
+    ],
+    "version": 4
+}
