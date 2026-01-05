@@ -9,7 +9,7 @@
 
 namespace fs = std::filesystem;
 
-bool save_as_lean(const byte_array& filepath, const byte_array& content);
+bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content);
 void exectute(byte_array& content);
 void replace_content(byte_array& content, replace_command& cmd);
 
@@ -20,8 +20,31 @@ int32 main(int32 argc, char* argv[])
         std::cerr << "用法: " << argv[0] << " <文件1> [文件2 ...]" << std::endl;
         return 1;
     }
-    
+
+    fs::path output_path = "./Lean";
+    // 尝试寻找"-o"选项并更改输出目录
     for (int i = 1; i < argc; ++i) {
+        if (byte_array(argv[i]) == "-o") {
+            ++i;
+            if (i >= argc) {
+                std::cerr << "错误：\"-o\" 参数不存在后继参数" << std::endl;
+                return 1;
+            }
+            output_path = argv[i];
+            if (!fs::is_directory(output_path)) {
+                std::cerr << "警告：\"-o\" 参数的后继参数必须是目录，而不能是文件——将使用默认目录\"./Lean\"输出" << std::endl;
+                output_path = "./Lean";
+            }
+        }
+    }
+    
+    // 提取文件并处理
+    for (int i = 1; i < argc; ++i) {
+        if (byte_array(argv[i]) == "-o") {
+            ++i;
+            continue;
+        }
+
         byte_array filepath = argv[i];
         std::ifstream file(filepath, std::ios::binary);
         
@@ -42,7 +65,7 @@ int32 main(int32 argc, char* argv[])
         
         exectute(content);
 
-        if (save_as_lean(filepath, content)) {
+        if (save_as_lean(filepath, output_path, content)) {
             std::cout << "文件转换成功！" << std::endl;
         } else {
             std::cerr << "文件转换失败！" << std::endl;
@@ -52,15 +75,14 @@ int32 main(int32 argc, char* argv[])
 }
 
 // 创建Lean文件夹（如果不存在）
-bool create_lean_directory()
+bool create_output_directory(const fs::path& output_path)
 {
     try {
-        fs::path lean_dir = "Lean";
-        if (!fs::exists(lean_dir)) {
-            if (fs::create_directory(lean_dir)) {
-                std::cout << "创建 Lean 文件夹" << std::endl;
+        if (!fs::exists(output_path)) {
+            if (fs::create_directory(output_path)) {
+                std::cout << "创建输出文件夹" << std::endl;
             } else {
-                std::cerr << "警告：无法创建 Lean 文件夹" << std::endl;
+                std::cerr << "警告：无法创建输出文件夹" << std::endl;
                 return false;
             }
         }
@@ -72,11 +94,11 @@ bool create_lean_directory()
 }
 
 // 修改文件后缀为.lean并保存到Lean文件夹
-bool save_as_lean(const byte_array& filepath, const byte_array& content)
+bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content)
 {
     try {
         // 创建Lean文件夹
-        if (!create_lean_directory()) {
+        if (!create_output_directory(output_path)) {
             return false;
         }
         
@@ -85,7 +107,7 @@ bool save_as_lean(const byte_array& filepath, const byte_array& content)
         byte_array original_name = original_path.filename().string();
         
         // 替换后缀为.lean
-        fs::path lean_path = fs::path("Lean") / original_name;
+        fs::path lean_path = output_path / original_name;
         lean_path.replace_extension(".lean");
         
         // 保存文件

@@ -44,10 +44,15 @@ Code-Math 是一个专门工具，用于将符合特定结构的 C++ 代码转�
 ./code-math input.cpp
 
 # 转译多个文件
-./code-math input1.cpp input2.cpp inpu3.cpp ...
+./code-math input1.cpp input2.cpp input3.cpp ...
 ```
 
 转译的结果默认放在程序工作目录下的`Lean/`文件夹下。
+
+```bash
+# 可以使用 -o 选项指定需要输出的目录
+./code-math input.cpp ... -o output/
+```
 
 ### 验证工具
 
