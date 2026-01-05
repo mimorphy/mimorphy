@@ -15,9 +15,15 @@ using std::make_shared;
 extern map<str, commmand_value> buffer;
 extern vector<commmand_value> executable_list;
 
-str s0 = fixed_length("nat8 to NC8");
+str nat8_to_NC8 = fixed_length("nat8_to_NC8");
+str not_id_character = fixed_length("not_id_character");
+map<str, commmand_value> buffer = {
+    { nat8_to_NC8, { make_shared<replace_command>(nat8_to_NC8, R"((@not_id_character#)nat8(@not_id_character#))", R"(@1#NC8@2#)"), command_type::REPLACE_COMMAND } },
+    { not_id_character, { make_shared<define_command>(not_id_character, R"([^a-zA-Z0-9_])"), command_type::DEFINE_COMMAND } }
+};
+
 vector<commmand_value> executable_list = {
-    { make_shared<replace_command>(s0, R"(([^a-zA-Z0-9_])nat8([^a-zA-Z0-9_]))", R"(#1#NC8#2#)"), command_type::REPLACE_COMMAND }
+    buffer[nat8_to_NC8]
 };
 
 #endif

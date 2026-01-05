@@ -137,17 +137,23 @@ void exectute(byte_array& content)
         case command_type::REPLACE_COMMAND:
             replace_content(content, *static_cast<replace_command*>(cmdv.ptr.get()));
             break;
+        case command_type::DEFINE_COMMAND:
+            break;
         }
     }
 }
 
 byte_array expand_target(byte_array& content, std::vector<std::pair<sizevalue, sizevalue>>& captures, byte_array& target);
+byte_array expand_number_of_target(byte_array& content, std::vector<std::pair<sizevalue, sizevalue>>& captures, byte_array& target);
+byte_array expand_symbol_of_target(byte_array& target);
 
 // 替换命令的执行
 void replace_content(byte_array& content, replace_command& cmd)
 {   
     // 查找所有匹配
-    std::regex re(cmd.pattern);
+    byte_array pattern = expand_symbol_of_target(cmd.pattern);
+    std::regex re(pattern);
+    
     std::vector<std::pair<sizevalue, sizevalue>> matches;  // 位置和长度
     std::vector<std::vector<std::pair<sizevalue, sizevalue>>> captures;  // 每个匹配的捕获组
     
@@ -181,11 +187,19 @@ void replace_content(byte_array& content, replace_command& cmd)
     }
 }
 
-// 展开 replace_command::target 中的 "#...#" 内容
+// 展开 replace_command::target 中的 "@...#" 内容
 byte_array expand_target(byte_array& content, std::vector<std::pair<sizevalue, sizevalue>>& captures, byte_array& target)
 {
+    byte_array expanded_target = expand_number_of_target(content, captures, target);
+    expanded_target = expand_symbol_of_target(expanded_target);
+    return std::move(expanded_target);
+}
+
+// 展开 replace_command::target 中的 "@\d+#" 内容
+byte_array expand_number_of_target(byte_array& content, std::vector<std::pair<sizevalue, sizevalue>>& captures, byte_array& target)
+{
     byte_array expanded_target = target;
-    std::regex re(R"(#(\d+)#)");
+    std::regex re(R"(@(\d+)#)");
     std::vector<std::pair<sizevalue, sizevalue>> matches;  // 位置和长度
     std::vector<std::vector<std::pair<sizevalue, sizevalue>>> number_captures;  // 每个匹配的捕获组
     
@@ -223,6 +237,52 @@ byte_array expand_target(byte_array& content, std::vector<std::pair<sizevalue, s
         }
         runtime_assert(number - 1 < captures.size(), "在展开\"" + target + "\"的\"" + expanded_target.substr(match.first, match.second) + "\"时，未发现存在对应的捕获组！");
         expanded_target.replace(match.first, match.second, content.substr(captures[number - 1].first, captures[number - 1].second));
+    }
+
+    return std::move(expanded_target);
+}
+
+// 展开 target 中的 "@{var}#" 内容，其中 var 指代任意定义名标识符
+byte_array expand_symbol_of_target(byte_array& target)
+{
+    byte_array expanded_target = target;
+    std::regex re(R"(@([a-zA-Z_][a-zA-Z0-9_]*)#)");
+    std::vector<std::pair<sizevalue, sizevalue>> matches;  // 位置和长度
+    std::vector<std::vector<std::pair<sizevalue, sizevalue>>> symbol_captures;  // 每个匹配的捕获组
+
+    auto begin = std::sregex_iterator(expanded_target.begin(), expanded_target.end(), re);
+    auto end = std::sregex_iterator();
+    
+    for (auto it = begin; it != end; ++it) {
+        const std::smatch& match = *it;
+        
+        // 主匹配
+        sizevalue pos = match.position();
+        sizevalue length = match.length();
+        matches.emplace_back(pos, length);
+        
+        // 处理捕获组
+        std::vector<std::pair<sizevalue, sizevalue>> match_captures;
+        for (sizevalue i = 1; i < match.size(); ++i) {  // i=0是整个匹配
+            if (match[i].matched) {
+                match_captures.emplace_back(match.position(i), match.length(i));
+            } else {
+                match_captures.emplace_back(byte_array::npos, 0);  // 未匹配的捕获组
+            }
+        }
+        symbol_captures.push_back(std::move(match_captures));
+    }
+
+    // 展开定义
+    for (sizevalue i = matches.size() - 1; i != sizevalue_max; --i) {
+        auto& match = matches[i];
+        str name = fixed_length(expanded_target.substr(symbol_captures[i][0].first, symbol_captures[i][0].second));
+        runtime_assert(buffer.contains(name), "在展开\"" + target + "\"的\"" + expanded_target.substr(match.first, match.second) + "\"时，未发现存在对应的定义！");
+        auto& cmdv = buffer[name];
+        // 如果是定义指令，直接展开
+        if (cmdv.type == command_type::DEFINE_COMMAND) {
+            expanded_target.replace(match.first, match.second, static_cast<define_command*>(cmdv.ptr.get())->pattern);
+        }
     }
 
     return std::move(expanded_target);

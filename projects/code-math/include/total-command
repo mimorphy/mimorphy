@@ -3,13 +3,15 @@
 
 #include <command>
 #include <replace-command>
+#include <define-command>
 #include <memory>
 
 using std::shared_ptr;
 
 enum class command_type
 {
-    REPLACE_COMMAND
+    REPLACE_COMMAND,
+    DEFINE_COMMAND
 };
 
 struct commmand_value

@@ -1,0 +1,20 @@
+#ifndef DEFINE_COMMAND_
+#define DEFINE_COMMAND_
+
+#include <command>
+
+class define_command : public command
+{
+public:
+    define_command() = default;
+    define_command(const str& n, const byte_array& p): command(n, p) {}
+    define_command(const character* n, const byte_array& p) : command(n, p) {}
+    define_command(const str& n, byte_array&& p) : command(n, std::move(p)) {}
+    define_command(const define_command& other) = default;
+    define_command(define_command&& other) = default;
+    define_command& operator=(const define_command& other) = default;
+    define_command& operator=(define_command&& other) = default;
+    ~define_command() = default;
+};
+
+#endif
