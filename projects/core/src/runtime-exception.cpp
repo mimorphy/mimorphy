@@ -1,3 +1,4 @@
+#include <exception>
 #include <runtime-exception>
 #include <chrono>
 #include <filesystem>
@@ -6,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 
+using std::exception;
 using std::runtime_error;
 using std::ofstream;
 using std::stringstream;
@@ -56,7 +58,7 @@ void runtime_assert(bool condition, const char* information)
     runtime_assert(condition, byte_array(information));
 }
 
-void link_runtime_error(runtime_error& e, byte_array information)
+void link_error(exception& e, byte_array information)
 {
     throw runtime_error(std::string(e.what()) + " <- " + information);
 }

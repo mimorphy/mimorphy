@@ -4,7 +4,7 @@
 #include <basic>
 #include <stdexcept>
 
-using std::runtime_error;
+using std::exception;
 
 static byte_array get_current_time();
 
@@ -12,6 +12,6 @@ void runtime_assert(bool condition, byte_array information);
 
 void runtime_assert(bool condition, const char* information);
 
-void link_runtime_error(runtime_error& e, byte_array information);
+void link_error(exception& e, byte_array information);
 
 #endif

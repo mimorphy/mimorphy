@@ -1,0 +1,24 @@
+#ifndef REPLACE_COMMAND_
+#define REPLACE_COMMAND_
+
+#include <command>
+
+class replace_command : public command
+{
+public:
+    replace_command() = default;
+    replace_command(const str& n, const byte_array& p, const byte_array& t): command(n, p), target(t) {}
+    replace_command(const character* n, const byte_array& p, const byte_array& t) : command(n, p), target(t) {}
+    replace_command(const str& n, byte_array&& p, byte_array&& t) : command(n, std::move(p)), target(std::move(t)) {}
+    replace_command(const str& n, const byte_array& p, byte_array&& t) : command(n, p), target(std::move(t)) {}
+    replace_command(const replace_command& other) = default;
+    replace_command(replace_command&& other) = default;
+    replace_command& operator=(const replace_command& other) = default;
+    replace_command& operator=(replace_command&& other) = default;
+    ~replace_command() = default;
+
+public:
+    byte_array target{};
+};
+
+#endif

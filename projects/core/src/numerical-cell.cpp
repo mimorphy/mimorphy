@@ -130,7 +130,7 @@ void numerical_cell::operator=(span<natmax> value) noexcept
 			remainder = mod_value_by_value(span<natmax>(const_cast<natmax*>(copy_value.data()), copy_value.size()), current_number_of_states);
 		}
 		catch (runtime_error& e) {
-			link_runtime_error(e, "在数胞的赋值函数中，自身状态数为" + generate_information_of_linear_table(current_number_of_states) + "，赋予的值为" + generate_information_of_linear_table(value));
+			link_error(e, "在数胞的赋值函数中，自身状态数为" + generate_information_of_linear_table(current_number_of_states) + "，赋予的值为" + generate_information_of_linear_table(value));
 		}
 		memset(current_value.data(), 0, current_value.size());
 		memcpy(current_value.data(), remainder.data(), remainder.size() * sizeof(natmax));

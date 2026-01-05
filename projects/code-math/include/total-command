@@ -1,0 +1,36 @@
+#ifndef TOTAL_COMMAND
+#define TOTAL_COMMAND
+
+#include <command>
+#include <replace-command>
+#include <memory>
+
+using std::shared_ptr;
+
+enum class command_type
+{
+    REPLACE_COMMAND
+};
+
+struct commmand_value
+{
+    // 默认构造函数
+    commmand_value() = default;
+    
+    // 构造函数
+    commmand_value(shared_ptr<command> c, command_type t) : ptr(c), type(t) {}  // 注意：不需要std::move
+    
+    // 允许拷贝（因为shared_ptr是可拷贝的）
+    commmand_value(const commmand_value&) = default;
+    commmand_value& operator=(const commmand_value&) = default;
+    
+    // 允许移动
+    commmand_value(commmand_value&&) = default;
+    commmand_value& operator=(commmand_value&&) = default;
+
+    shared_ptr<command> ptr{};
+    command_type type{};
+};
+
+
+#endif

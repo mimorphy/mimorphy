@@ -40,7 +40,7 @@ constexpr intmax natmin_max = nat8_max;
 constexpr natmax natmax_max = 0xFFFFFFFFFFFFFFFF;
 constexpr sizevalue sizevalue_max = 0xFFFFFFFFFFFFFFFF;
 constexpr address address_max = natmax_max;
-constexpr address character_max = nat32_max;
+constexpr character character_max = nat32_max;
 
 constexpr intmax int8_min = -128;
 constexpr intmax int16_min = -32768;

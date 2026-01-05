@@ -1,0 +1,24 @@
+#ifndef COMMAND
+#define COMMAND
+
+#include <basic>
+
+class command
+{
+public:
+    command() = default;
+    ~command() = default;
+    explicit command(const str& n, const byte_array& p = byte_array{}) : name(n), pattern(p) {}
+    command(const character* n, const byte_array& p = byte_array{}) : name(n), pattern(p) {}
+    command(const str& n, byte_array&& p) : name(n), pattern(std::move(p)) {}
+    command(const command& other) = default;
+    command(command&& other) = default;
+    command& operator=(const command& other) = default;
+    command& operator=(command&& other) = default;
+
+public:
+    str_view name{};
+    byte_array pattern{};
+};
+
+#endif

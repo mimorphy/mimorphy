@@ -1,0 +1,23 @@
+#ifndef CONTEXT
+#define CONTEXT
+
+#include <basic>
+#include <total-command>
+#include <fixed-string>
+#include <vector>
+#include <map>
+#include <memory>
+
+using std::vector;
+using std::map;
+using std::make_shared;
+
+extern map<str, commmand_value> buffer;
+extern vector<commmand_value> executable_list;
+
+str s0 = fixed_length("nat8 to NC8");
+vector<commmand_value> executable_list = {
+    { make_shared<replace_command>(s0, R"(([^a-zA-Z0-9_])nat8([^a-zA-Z0-9_]))", R"(#1#NC8#2#)"), command_type::REPLACE_COMMAND }
+};
+
+#endif
