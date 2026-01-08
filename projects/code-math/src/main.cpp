@@ -146,8 +146,10 @@ void exectute(byte_array& content)
     }
 }
 
+byte_array set_capture_of(byte_array s, pair<sizevalue, sizevalue>& position);
 byte_array expand_target(byte_array& content, vector<pair<sizevalue, sizevalue>>& captures, byte_array& target);
 byte_array expand_number_of_target(byte_array& content, vector<pair<sizevalue, sizevalue>>& captures, byte_array& target);
+byte_array disable_all_captures(const byte_array& pattern);
 byte_array expand_symbol_of_target(byte_array& target);
 byte_array expand_symbol_once_of_target(byte_array& target);
 
@@ -188,50 +190,74 @@ byte_array replace_content(byte_array content, commmand_value& cmdv)
     auto begin = std::sregex_iterator(content.begin(), content.end(), re);
     auto end = std::sregex_iterator();
     
-    // 如果是替换指令，进行替换
-    if (cmdv.type == command_type::REPLACE_COMMAND) {
-        process_match(matches, captures, begin, end);
-
-        replace_command& cmd = *static_cast<replace_command*>(cmdv.ptr.get());
-        // 进行替换
-        for (sizevalue i = matches.size() - 1; i != sizevalue_max; --i) {
-            auto& match = matches[i];
-            byte_array expanded_target = expand_target(content, captures[i], cmd.target);
-            content.replace(match.first, match.second, expanded_target);
-        }
-    }
+    process_match(matches, captures, begin, end);
     
     // 进行逐层子替换
-    byte_array sub_content = expand_symbol_once_of_target(cmdv.ptr->pattern);
+    byte_array sub_content = disable_all_captures(expand_symbol_once_of_target(cmdv.ptr->pattern));
     re = R"(@([a-zA-Z_][a-zA-Z0-9_]*)#)";
     begin = std::sregex_iterator(sub_content.begin(), sub_content.end(), re);
     end = std::sregex_iterator();
+
+    auto old_matches = std::move(matches);
+    auto old_captures = std::move(captures);
 
     matches.clear();
     captures.clear();
     process_match(matches, captures, begin, end);
 
+    // 最外层循环，遍历单层展开的 pattern 中的变量
     for (sizevalue i = captures.size() - 1; i != sizevalue_max; --i) {
         str name = fixed_length(sub_content.substr(captures[i][0].first, captures[i][0].second));
-        std::regex temp_re(expand_symbol_of_target(buffer[name].ptr->pattern));
-        vector<pair<sizevalue, sizevalue>> temp_matches;  // 位置和长度
-        vector<vector<pair<sizevalue, sizevalue>>> temp_captures;  // 每个匹配的捕获组
-        auto temp_begin = std::sregex_iterator(content.begin(), content.end(), temp_re);
-        auto temp_end = std::sregex_iterator();
-        process_match(temp_matches, temp_captures, temp_begin, temp_end);
-        // 进行子替换
-        for (sizevalue j = temp_matches.size() - 1; j != sizevalue_max; --j) {
-            content.replace(temp_matches[j].first, temp_matches[j].second, replace_content(content.substr(temp_matches[j].first, temp_matches[j].second), buffer[name]));
+        runtime_assert(buffer.contains(name), "在展开\"" + sub_content + "\"的\"" + sub_content.substr(captures[i][0].first, captures[i][0].second) + "\"时，未发现存在对应的定义！");
+        byte_array temp_pattern = set_capture_of(sub_content, captures[i][0]);
+        std::regex temp_re(expand_symbol_of_target(temp_pattern));
+        // 内层循环，遍历 content 中的每个匹配的子字符串
+        for (sizevalue j = old_matches.size() - 1; j != sizevalue_max; --j) {
+            vector<pair<sizevalue, sizevalue>> temp_matches;  // 位置和长度
+            vector<vector<pair<sizevalue, sizevalue>>> temp_captures;  // 每个匹配的捕获组
+            byte_array temp_content = content.substr(old_matches[j].first, old_matches[j].second); // 子字符串
+            auto temp_begin = std::sregex_iterator(temp_content.begin(), temp_content.end(), temp_re);
+            auto temp_end = std::sregex_iterator();
+            process_match(temp_matches, temp_captures, temp_begin, temp_end);
+            // 进行子替换
+            auto replacement = replace_content(content.substr(old_matches[j].first + temp_captures[0][0].first, temp_captures[0][0].second), buffer[name]);
+            content.replace(old_matches[j].first + temp_captures[0][0].first, temp_captures[0][0].second, replacement);
+            // 更新索引
+            old_matches[j].second += replacement.size() - temp_captures[0][0].second;
+            old_captures[j][i].second += replacement.size() - temp_captures[0][0].second;
+            for (sizevalue k = i + 1; k < old_captures[j].size(); ++k) {
+                old_captures[j][k].first += replacement.size() - temp_captures[0][0].second;
+            }
+            for (sizevalue k = j + 1; k < old_matches.size(); ++k) {
+                old_matches[k].first += replacement.size() - temp_captures[0][0].second;
+                for (auto& old_capture : old_captures[k]) {
+                    old_capture.first += replacement.size() - temp_captures[0][0].second;
+                }
+            }
         }
-        // 由于替换可能导致之前的匹配和捕获失效，进行刷新
-        begin = std::sregex_iterator(sub_content.begin(), sub_content.end(), re);
-        end = std::sregex_iterator();
-        matches.clear();
-        captures.clear();
-        process_match(matches, captures, begin, end);
+    }
+
+    // 如果是替换指令，进行替换
+    if (cmdv.type == command_type::REPLACE_COMMAND) {
+        replace_command& cmd = *static_cast<replace_command*>(cmdv.ptr.get());
+        // 进行替换
+        for (sizevalue i = old_matches.size() - 1; i != sizevalue_max; --i) {
+            auto& match = old_matches[i];
+            byte_array expanded_target = expand_target(content, old_captures[i], cmd.target);
+            content.replace(match.first, match.second, expanded_target);
+        }
     }
 
     return std::move(content);
+}
+
+// 为 s 中名称位于 position 处的变量添加捕获修饰 (若之前没有)
+byte_array set_capture_of(byte_array s, pair<sizevalue, sizevalue>& position)
+{
+    byte_array result = s;
+    result.insert(position.first + position.second + 2, ")");
+    result.insert(position.first - 1, "(");
+    return std::move(result);
 }
 
 // 展开 replace_command::target 中的 "@...#" 内容
