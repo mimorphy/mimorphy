@@ -15,15 +15,44 @@ using std::make_shared;
 extern map<str, commmand_value> buffer;
 extern vector<commmand_value> executable_list;
 
-str nat8_to_NC8 = fixed_length("nat8_to_NC8");
 str not_id_character = fixed_length("not_id_character");
+
+str int8_to_Int8 = fixed_length("int8_to_Int8");
+str int16_to_Int16 = fixed_length("int16_to_Int16");
+str int32_to_Int32 = fixed_length("int32_to_Int32");
+str int64_to_Int64 = fixed_length("int64_to_Int64");
+str intmin_to_Int8 = fixed_length("intmin_to_Int8");
+str intmax_to_Int64 = fixed_length("intmax_to_Int64");
+
+str nat8_to_UInt8 = fixed_length("nat8_to_UInt8");
+str nat16_to_UInt16 = fixed_length("nat16_to_UInt16");
+str nat32_to_UInt32 = fixed_length("nat32_to_UInt32");
+str nat64_to_UInt64 = fixed_length("nat64_to_UInt64");
+str natmin_to_UInt8 = fixed_length("natmin_to_UInt8");
+str natmax_to_UInt64 = fixed_length("natmax_to_UInt64");
+
+str sizevalue_to_UInt64 = fixed_length("sizevalue_to_UInt64");
+
 map<str, commmand_value> buffer = {
-    { nat8_to_NC8, { make_shared<replace_command>(nat8_to_NC8, R"((@not_id_character#)nat8(@not_id_character#))", R"(@1#NC8@2#)"), command_type::REPLACE_COMMAND } },
-    { not_id_character, { make_shared<define_command>(not_id_character, R"([^a-zA-Z0-9_])"), command_type::DEFINE_COMMAND } }
+    { not_id_character, { make_shared<define_command>(not_id_character, R"([^a-zA-Z0-9_])"), command_type::DEFINE_COMMAND } },
+    // 将基本类型替换为 Lean 的基本类型
+    { nat8_to_UInt8, { make_shared<replace_command>(nat8_to_UInt8, R"((@not_id_character#)nat8(@not_id_character#))", R"(@1#UInt8@2#)"), command_type::REPLACE_COMMAND } },
+    { nat16_to_UInt16, { make_shared<replace_command>(nat16_to_UInt16, R"((@not_id_character#)nat16(@not_id_character#))", R"(@1#UInt16@2#)"), command_type::REPLACE_COMMAND } },
+    { nat32_to_UInt32, { make_shared<replace_command>(nat32_to_UInt32, R"((@not_id_character#)nat32(@not_id_character#))", R"(@1#UInt32@2#)"), command_type::REPLACE_COMMAND } },
+    { nat64_to_UInt64, { make_shared<replace_command>(nat64_to_UInt64, R"((@not_id_character#)nat64(@not_id_character#))", R"(@1#UInt64@2#)"), command_type::REPLACE_COMMAND } },
+    { natmin_to_UInt8, { make_shared<replace_command>(natmin_to_UInt8, R"((@not_id_character#)natmin(@not_id_character#))", R"(@1#UInt8@2#)"), command_type::REPLACE_COMMAND } },
+    { natmax_to_UInt64, { make_shared<replace_command>(natmax_to_UInt64, R"((@not_id_character#)natmax(@not_id_character#))", R"(@1#UInt64@2#)"), command_type::REPLACE_COMMAND } },
+    { int8_to_Int8, { make_shared<replace_command>(int8_to_Int8, R"((@not_id_character#)int8(@not_id_character#))", R"(@1#UInt8@2#)"), command_type::REPLACE_COMMAND } },
+    { int16_to_Int16, { make_shared<replace_command>(int16_to_Int16, R"((@not_id_character#)int16(@not_id_character#))", R"(@1#Int16@2#)"), command_type::REPLACE_COMMAND } },
+    { int32_to_Int32, { make_shared<replace_command>(int32_to_Int32, R"((@not_id_character#)int32(@not_id_character#))", R"(@1#Int32@2#)"), command_type::REPLACE_COMMAND } },
+    { int64_to_Int64, { make_shared<replace_command>(int64_to_Int64, R"((@not_id_character#)int64(@not_id_character#))", R"(@1#Int64@2#)"), command_type::REPLACE_COMMAND } },
+    { intmin_to_Int8, { make_shared<replace_command>(intmin_to_Int8, R"((@not_id_character#)intmin(@not_id_character#))", R"(@1#Int8@2#)"), command_type::REPLACE_COMMAND } },
+    { intmax_to_Int64, { make_shared<replace_command>(intmax_to_Int64, R"((@not_id_character#)intmax(@not_id_character#))", R"(@1#Int64@2#)"), command_type::REPLACE_COMMAND } },
+    { sizevalue_to_UInt64, { make_shared<replace_command>(sizevalue_to_UInt64, R"((@not_id_character#)sizevalue(@not_id_character#))", R"(@1#UInt64@2#)"), command_type::REPLACE_COMMAND } },
 };
 
 vector<commmand_value> executable_list = {
-    buffer[nat8_to_NC8]
+    buffer[nat8_to_UInt8]
 };
 
 #endif
