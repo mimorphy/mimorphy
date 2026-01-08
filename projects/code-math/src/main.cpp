@@ -12,7 +12,7 @@ using std::vector;
 using std::pair;
 namespace fs = std::filesystem;
 
-bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content);
+bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content, vector<byte_array>& saved_file_names);
 void exectute(byte_array& content);
 byte_array replace_content(byte_array content, commmand_value& cmd);
 
@@ -42,6 +42,7 @@ int32 main(int32 argc, char* argv[])
     }
     
     // 提取文件并处理
+    vector<byte_array> saved_file_names{};
     for (int i = 1; i < argc; ++i) {
         if (byte_array(argv[i]) == "-o") {
             ++i;
@@ -68,7 +69,7 @@ int32 main(int32 argc, char* argv[])
         
         exectute(content);
 
-        if (save_as_lean(filepath, output_path, content)) {
+        if (save_as_lean(filepath, output_path, content, saved_file_names)) {
             std::cout << "文件转换成功！" << std::endl;
         } else {
             std::cerr << "文件转换失败！" << std::endl;
@@ -97,7 +98,7 @@ bool create_output_directory(const fs::path& output_path)
 }
 
 // 修改文件后缀为.lean并保存到Lean文件夹
-bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content)
+bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const byte_array& content, vector<byte_array>& saved_file_names)
 {
     try {
         // 创建Lean文件夹
@@ -108,13 +109,16 @@ bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const
         // 获取原始文件名（不含路径）
         fs::path original_path(filepath);
         byte_array original_name = original_path.filename().string();
+        std::replace(original_name.begin(), original_name.end(), '-', '_'); // 将文件名中的 '-' 替换为 '_'
         
         // 替换后缀为.lean
         fs::path lean_path = output_path / original_name;
         lean_path.replace_extension(".lean");
         
         // 保存文件
-        std::ofstream out_file(lean_path, std::ios::binary);
+        byte_array stem = lean_path.stem().string();
+        // 根据是否已经保存过同名(省略后缀)文件来选择追加或覆盖模式
+        std::ofstream out_file(lean_path, std::find_if(saved_file_names.begin(), saved_file_names.end(), [&stem](byte_array& s) { return s == stem; }) != saved_file_names.end() ? std::ios::binary | std::ios::app : std::ios::binary);
         if (!out_file) {
             std::cerr << "错误：无法创建文件 " << lean_path << std::endl;
             return false;
@@ -122,6 +126,8 @@ bool save_as_lean(const byte_array& filepath, const fs::path& output_path, const
         
         out_file.write(content.c_str(), content.size());
         out_file.close();
+
+        saved_file_names.push_back(stem);
         
         std::cout << "已保存为: " << lean_path << std::endl;
         return true;
