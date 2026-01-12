@@ -198,14 +198,14 @@ byte_array replace_content(byte_array content, commmand_value& cmdv)
     
     process_match(matches, captures, begin, end);
     
+    auto old_matches = std::move(matches);
+    auto old_captures = std::move(captures);
+
     // 进行逐层子替换
     byte_array sub_content = disable_all_captures(expand_symbol_once_of_target(cmdv.ptr->pattern));
     re = R"(@([a-zA-Z_][a-zA-Z0-9_]*)#)";
     begin = std::sregex_iterator(sub_content.begin(), sub_content.end(), re);
     end = std::sregex_iterator();
-
-    auto old_matches = std::move(matches);
-    auto old_captures = std::move(captures);
 
     matches.clear();
     captures.clear();
@@ -257,7 +257,7 @@ byte_array replace_content(byte_array content, commmand_value& cmdv)
     return std::move(content);
 }
 
-// 为 s 中名称位于 position 处的变量添加捕获修饰 (若之前没有)
+// 为 s 中名称位于 position 处的变量添加捕获修饰
 byte_array set_capture_of(byte_array s, pair<sizevalue, sizevalue>& position)
 {
     byte_array result = s;

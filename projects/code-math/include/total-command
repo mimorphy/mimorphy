@@ -20,7 +20,7 @@ struct commmand_value
     commmand_value() = default;
     
     // 构造函数
-    commmand_value(shared_ptr<command> c, command_type t) : ptr(c), type(t) {}  // 注意：不需要std::move
+    commmand_value(shared_ptr<command> c, command_type t) : ptr(c), type(t) {}
     
     // 允许拷贝（因为shared_ptr是可拷贝的）
     commmand_value(const commmand_value&) = default;
