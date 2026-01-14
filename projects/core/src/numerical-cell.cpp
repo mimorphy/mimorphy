@@ -1,12 +1,14 @@
 #include <numerical-cell>
 #include <bit-span>
 #include <runtime-exception>
+#include <natural-number>
+#include <integer-number>
 
 using std::vector;
 using std::span;
 using std::runtime_error;
 using std::memset;
-using std::memcpy;
+using std::copy;
 using std::min;
 using std::to_string;
 using std::weak_ordering;
@@ -15,14 +17,14 @@ numerical_cell::numerical_cell(const vector<natmax>& upper_bound) noexcept
 {
 	span<natmax> upper_bound_span(const_cast<natmax*>(upper_bound.data()), find_if(upper_bound.rbegin(), upper_bound.rend(), [](natmax x) { return x != 0; }).base() - upper_bound.begin());
 	content.resize(upper_bound_span.size() * 2, 0);
-	memcpy(content.data() + upper_bound_span.size(), upper_bound_span.data(), upper_bound_span.size() * sizeof(natmax));
+	copy(upper_bound_span.data(), upper_bound_span.data() + upper_bound_span.size(), content.data() + upper_bound_span.size());
 }
 
 numerical_cell::numerical_cell(vector<natmax>&& upper_bound) noexcept
 {
 	span<natmax> upper_bound_span(const_cast<natmax*>(upper_bound.data()), find_if(upper_bound.rbegin(), upper_bound.rend(), [](natmax x) { return x != 0; }).base() - upper_bound.begin());
 	content.resize(upper_bound_span.size() * 2, 0);
-	memcpy(content.data() + upper_bound_span.size(), upper_bound_span.data(), upper_bound_span.size() * sizeof(natmax));
+	copy(upper_bound_span.data(), upper_bound_span.data() + upper_bound_span.size(), content.data() + upper_bound_span.size());
 }
 
 span<natmax> numerical_cell::value() const noexcept
@@ -100,8 +102,8 @@ numerical_cell::numerical_cell(const numerical_cell& right) noexcept
 	auto right_number_of_states = right.number_of_states();
 	auto right_value = right.value();
 	content.resize(right_number_of_states.size() * 2, 0);
-	memcpy(content.data() + right_number_of_states.size(), right_number_of_states.data(), right_number_of_states.size() * sizeof(natmax));
-	memcpy(content.data(), right_value.data(), right_number_of_states.size() * sizeof(natmax));
+	copy(right_number_of_states.data(), right_number_of_states.data() + right_number_of_states.size(), content.data() + right_number_of_states.size());
+	copy(right_value.data(), right_value.data() + right_number_of_states.size(), content.data());
 }
 
 numerical_cell::numerical_cell(numerical_cell&& right) noexcept
@@ -109,13 +111,13 @@ numerical_cell::numerical_cell(numerical_cell&& right) noexcept
 	auto right_number_of_states = right.number_of_states();
 	auto right_value = right.value();
 	content.resize(right_number_of_states.size() * 2, 0);
-	memcpy(content.data() + right_number_of_states.size(), right_number_of_states.data(), right_number_of_states.size() * sizeof(natmax));
-	memcpy(content.data(), right_value.data(), right_number_of_states.size() * sizeof(natmax));
+	copy(right_number_of_states.data(), right_number_of_states.data() + right_number_of_states.size(), content.data() + right_number_of_states.size());
+	copy(right_value.data(), right_value.data() + right_number_of_states.size(), content.data());
 }
 
 void numerical_cell::operator=(span<natmax> value) noexcept
 {
-	runtime_assert(not value.empty(), "数胞的=函数的前置条件不被满足");
+	runtime_assert(!value.empty(), "数胞的=函数的前置条件不被满足");
 
 	auto current_number_of_states = this->number_of_states();
 	auto current_value = this->value();
@@ -133,11 +135,11 @@ void numerical_cell::operator=(span<natmax> value) noexcept
 			link_error(e, "在数胞的赋值函数中，自身状态数为" + generate_information_of_linear_table(current_number_of_states) + "，赋予的值为" + generate_information_of_linear_table(value));
 		}
 		memset(current_value.data(), 0, current_value.size());
-		memcpy(current_value.data(), remainder.data(), remainder.size() * sizeof(natmax));
+		copy(remainder.data(), remainder.data() + remainder.size(), current_value.data());
 	}
 	else {
 		memset(current_value.data(), 0, current_value.size());
-		memcpy(current_value.data(), value.data(), value.size() * sizeof(natmax));
+		copy(value.data(), value.data() + value.size(), current_value.data());
 	}
 }
 
@@ -151,14 +153,78 @@ void numerical_cell::operator=(numerical_cell&& right) noexcept
 	content = right.content;
 }
 
+// 为 natural_number 实现快速幂
+static natural_number power(natural_number& base, sizevalue exponential)
+{
+    if (exponential == 0) {
+        return natural_number({1});
+    }
+    
+    natural_number result({1});
+    natural_number current_power = base;
+    sizevalue exp = exponential;
+    
+    while (exp > 0) {
+        // 如果当前位是奇数
+        if (exp & 1) {
+            result *= current_power;
+        }
+        // 平方
+        if (exp > 1) {  // 避免最后一次不必要的平方计算
+            current_power *= current_power;
+        }
+        exp >>= 1;  // 右移一位，相当于除以2
+    }
+    
+    return result;
+}
+
+// 对于右值引用版本，可以直接复用上面的逻辑
+static natural_number power(natural_number&& base, sizevalue exponential)
+{
+    natural_number temp = std::move(base);
+    return power(temp, exponential);
+}
+
+// 为 integer_number 实现快速幂（需要处理负数）
+static integer_number power(integer_number& base, sizevalue exponential)
+{
+    if (exponential == 0) {
+        return integer_number({1});
+    }
+    
+    integer_number result({1});
+    integer_number current_power = base;
+    sizevalue exp = exponential;
+    
+    while (exp > 0) {
+        if (exp & 1) {
+            result *= current_power;
+        }
+        if (exp > 1) {
+            current_power *= current_power;
+        }
+        exp >>= 1;
+    }
+    
+    return result;
+}
+
+// 右值引用版本
+static integer_number power(integer_number&& base, sizevalue exponential)
+{
+    integer_number temp = std::move(base);
+    return power(temp, exponential);
+}
+
 // 逻辑规范：
-// 前置条件 P: dividend 和 divisor 皆有效 (作为无符号数解释)，且 divisor != 0
-// 后置条件 Q: 返回 dividend mod divisor (余数)
+// 前置条件: dividend 和 divisor 皆有效 (作为无符号数解释)，且 divisor != 0
+// 后置条件: 返回 dividend mod divisor (余数)
 // 注意: dividend 在调用此函数之后可能会被改变
 static vector<natmax> mod_value_by_value(const span<natmax>& dividend, const span<natmax> divisor) noexcept
 {
-	runtime_assert(dividend.size() > 0 and divisor.size() > 0, "在 mod_value_by_value 中被除数与除数至少有一个是无效的");
-	runtime_assert(not all_of(divisor.begin(), divisor.end(), [](const natmax value) { return value == 0; }), "在 mod_value_by_value 中发现除数为0");
+	runtime_assert(dividend.size() > 0 && divisor.size() > 0, "在 mod_value_by_value 中被除数与除数至少有一个是无效的");
+	runtime_assert(!all_of(divisor.begin(), divisor.end(), [](const natmax value) { return value == 0; }), "在 mod_value_by_value 中发现除数为0");
 	// 将输入转换为位跨度
 	bit_span dividend_bit_span = bit_span(reinterpret_cast<::byte*>(dividend.data()), 0, dividend.size() * sizeof(natmax) * WORD_SIZE);
 	bit_span divisor_bit_span = bit_span(reinterpret_cast<::byte*>(divisor.data()), 0, divisor.size() * sizeof(natmax) * WORD_SIZE);
@@ -170,10 +236,8 @@ static vector<natmax> mod_value_by_value(const span<natmax>& dividend, const spa
 		return vector<natmax>(dividend.begin(), dividend.end());
 	}
 
+	vector<natmax> original_dividend(dividend.begin(), dividend.end()); // 保留原始被除数用于断言
 	// 主循环：长除法求余数
-	// 循环不变式: 
-	//   dividend_bit_span 的当前值 = 原始被除数的高位部分
-	//   且 0 ≤ 当前余数 < divisor
 	for (sizevalue i = 0; i < dividend_bit_span.size(); ++i) {
 		// 取当前子跨度：从最高位到当前位
 		sizevalue start_index = dividend_bit_span.size() - 1 - i;
@@ -181,13 +245,9 @@ static vector<natmax> mod_value_by_value(const span<natmax>& dividend, const spa
 		auto sub_dividend = dividend_bit_span.subspan(start_index, length);
 		sub_dividend = sub_dividend.subspan(0, find_if(sub_dividend.rbegin(), --sub_dividend.rend(), [](::byte b) { return b != 0; }).base() - sub_dividend.begin());
 
-		// 循环不变式: 
-		//   sub_dividend 表示当前被处理的位段
-		//   该位段的值 >= divisor 或需要继续扩展
-
 		// 比较当前子跨度与除数
 		if (!is_less(bit_span(sub_dividend), bit_span(divisor_bit_span))) { // 即 sub_dividend >= divisor
-			// 执行减法：sub_dividend = sub_dividend - divisor
+			// 执行减法：sub_dividend <- sub_dividend - divisor
 			decrease_between_bit_spans(sub_dividend, divisor_bit_span);
 		}
 	}
@@ -197,21 +257,22 @@ static vector<natmax> mod_value_by_value(const span<natmax>& dividend, const spa
 	vector<natmax> remainder(dividend.size());
 
 	// 复制余数部分 (dividend 的低位)
-	memcpy(remainder.data(), dividend.data(), remainder.size() * sizeof(natmax));
+	copy(dividend.data(), dividend.data() + remainder.size(), remainder.data());
 
 	// 删除结果中无用的0
 	remainder.erase(find_if(remainder.rbegin(), --remainder.rend(), [](natmax value) { return value != 0; }).base(), remainder.end());
+	runtime_assert(natural_number(span<natmax>(remainder.data(), remainder.size())) == natural_number(original_dividend) % natural_number(divisor), "mod_value_by_value 的后置条件不被满足");
 	return std::move(remainder);
 }
 
 // 逻辑规范：
-// 前置条件 P: dividend 和 divisor 皆有效 (作为无符号数解释)，且 divisor != 0
-// 后置条件 Q: 返回 dividend / divisor (整除)
+// 前置条件: dividend 和 divisor 皆有效 (作为无符号数解释)，且 divisor != 0
+// 后置条件: 返回 dividend / divisor (整除)
 // 注意: dividend 在调用此函数之后可能会被改变
 static vector<natmax> div_value_by_value(const span<natmax>& dividend, const span<natmax> divisor) noexcept
 {
-	runtime_assert(dividend.size() > 0 and divisor.size() > 0, "在 mod_value_by_value 中被除数与除数至少有一个是无效的");
-	runtime_assert(not all_of(divisor.begin(), divisor.end(), [](const natmax value) { return value == 0; }), "在 mod_value_by_value 中发现除数为0");
+	runtime_assert(dividend.size() > 0 && divisor.size() > 0, "在 mod_value_by_value 中被除数与除数至少有一个是无效的");
+	runtime_assert(!all_of(divisor.begin(), divisor.end(), [](const natmax value) { return value == 0; }), "在 mod_value_by_value 中发现除数为0");
 	// 将被除数和除数转换为比特数组
 	bit_span dividend_bit_span = bit_span(reinterpret_cast<::byte*>(dividend.data()), 0, dividend.size() * sizeof(natmax) * WORD_SIZE);
 	bit_span divisor_bit_span = bit_span(reinterpret_cast<::byte*>(divisor.data()), 0, divisor.size() * sizeof(natmax) * WORD_SIZE);
@@ -223,6 +284,7 @@ static vector<natmax> div_value_by_value(const span<natmax>& dividend, const spa
 		return vector<natmax>(1, 0);
 	}
 
+	vector<natmax> original_dividend(dividend.begin(), dividend.end()); // 保留原始被除数用于断言
 	vector<natmax> result(dividend.size()); // 存储相除的结果的比特数组
 	bit_span result_bitarray = bit_span(reinterpret_cast<::byte*>(result.data()), 0, result.size() * sizeof(natmax) * WORD_SIZE);
 	auto iterator_of_result = result_bitarray.rbegin();
@@ -246,6 +308,7 @@ static vector<natmax> div_value_by_value(const span<natmax>& dividend, const spa
 	}
 	// 删除结果中无用的0
 	result.erase(find_if(result.rbegin(), --result.rend(), [](natmax value) { return value != 0; }).base(), result.end());
+	runtime_assert(natural_number(result) == natural_number(original_dividend) / natural_number(divisor), "div_value_by_value 的后置条件不被满足");
 	return std::move(result);
 }
 
@@ -311,10 +374,11 @@ static vector<natmax> bit_span_to_number(bit_span bs)
 
 // 逻辑规范：
 // 前置条件 P: minuend >= subtrahend (作为无符号整数解释)，且两者均为有效位跨度
-// 后置条件 Q: minuend := minuend - subtrahend
+// 后置条件 Q: O(minuend) := I(minuend) - subtrahend
 static void decrease_between_bit_spans(bit_span& minuend, const bit_span& subtrahend) noexcept
 {
 	// 前置条件: minuend >= subtrahend
+	runtime_assert(natural_number(bit_span_to_number(minuend)) >= natural_number(bit_span_to_number(subtrahend)), "调用 decrease_between_bit_spans 时不满足前置条件 minuend >= subtrahend");
 	sizevalue culculate_length = min(minuend.size(), subtrahend.size());
 	// culculate_length := min(minuend.size(), subtrahend.size())
 	bool borrow = false;
@@ -323,8 +387,8 @@ static void decrease_between_bit_spans(bit_span& minuend, const bit_span& subtra
 	bit_span original_minuend(reinterpret_cast<::byte*>(temp.data()), 0, temp.size() * sizeof(natmax) * WORD_SIZE); // 原来的 minuend，用于断言
 	// 主循环：处理公共位段 (0 到 culculate_length-1)
 	// 循环不变式: 
-	//   设 A = old(minuend), B = subtrahend, L = min(size)
-	//   对于当前处理的位索引 i (0 ≤ i ≤ culculate_length):
+	//   设 A = I(minuend), B = I(subtrahend), L = min(size)
+	//   对于当前处理的位索引 i (0 <= i ≤ culculate_length):
 	//     Low_i(minuend) = Low_i(A) - Low_i(B) - 2^i * borrow
 	//   其中 Low_k(X) = X mod 2^k，表示 X 的低 k 位组成的自然数
 	for (sizevalue i = 0; i < culculate_length; ++i) {
@@ -354,19 +418,20 @@ static void decrease_between_bit_spans(bit_span& minuend, const bit_span& subtra
 
 	// 处理借位传播 (当 minuend 有更高位时)
 	// 不变式: 
-	//   minuend 的当前值 + 2^{culculate_length} * borrow = 
-	//      old(minuend) - subtrahend (仅低 culculate_length 位部分)
+	//   C(minuend) + 2^{culculate_length} * borrow = 
+	//     I(minuend) - subtrahend (仅低 culculate_length 位部分)
 	if (borrow) {
 		sizevalue offset = 0;
 		// 借位传播：从 culculate_length 开始向高位传播
 		// 终止条件：当遇到一个位翻转后为 false (即原为 true)
 		do {
 			// 翻转当前高位位 (借位传播)
-			minuend[culculate_length + offset] = not minuend[culculate_length + offset];
+			minuend[culculate_length + offset] = !minuend[culculate_length + offset];
 			++offset;
 		} while (minuend[culculate_length + offset - 1] == true);
 	}
-	// 后置条件: minuend = old(minuend) - subtrahend
+	runtime_assert(natural_number(bit_span_to_number(minuend)) == natural_number(bit_span_to_number(original_minuend)) - natural_number(bit_span_to_number(subtrahend)), "decrease_between_bit_spans 的后置条件不被满足");
+	// 后置条件: O(minuend) = I(minuend) - subtrahend
 }
 
 // 逻辑规范：
@@ -376,7 +441,7 @@ template <typename T>
 bool is_equal(T&& l, T&& r) noexcept
 {
 	// 前置条件: l.size() > 0, r.size() > 0, l.back() != 0, r.back() != 0
-	runtime_assert(l.size() > 0 and r.size() > 0 and (l.size() > 1 ? l.back() != 0 : true) and (r.size() > 1 ? r.back() != 0 : true), "is_equal 的前置条件不被满足");
+	runtime_assert(l.size() > 0 && r.size() > 0 && (l.size() > 1 ? l.back() != 0 : true) && (r.size() > 1 ? r.back() != 0 : true), "is_equal 的前置条件不被满足");
 	if (l.size() < r.size()) {
 		return false;
 	}
@@ -396,7 +461,7 @@ bool is_equal(T&& l, T&& r) noexcept
 		T high_l(l.begin() + i + 1, l.end());
 		T high_r(r.begin() + i + 1, r.end());
 		for (sizevalue j = 0; j < L - i - 1; ++j) {
-			runtime_assert(high_l[j] == high_r[j] and (i == sizevalue_max or i < L), "is_equal 的循环不变式不被满足");
+			runtime_assert(high_l[j] == high_r[j] && (i == sizevalue_max || i < L), "is_equal 的循环不变式不被满足");
 		}
 		if (l[i] < r[i]) {
 			return false;
@@ -421,7 +486,7 @@ template <typename T>
 bool is_less(T&& l, T&& r) noexcept
 {
 	// 前置条件: l.size() > 0, r.size() > 0, l.back() != 0, r.back() != 0
-	runtime_assert(l.size() > 0 and r.size() > 0 and (l.size() > 1 ? l.back() != 0 : true) and (r.size() > 1 ? r.back() != 0 : true), "is_less 的前置条件不被满足");
+	runtime_assert(l.size() > 0 && r.size() > 0 && (l.size() > 1 ? l.back() != 0 : true) && (r.size() > 1 ? r.back() != 0 : true), "is_less 的前置条件不被满足");
 	if (l.size() < r.size()) {
 		return true;
 	}
@@ -441,7 +506,7 @@ bool is_less(T&& l, T&& r) noexcept
 		T high_l(l.begin() + i + 1, l.end());
 		T high_r(r.begin() + i + 1, r.end());
 		for (sizevalue j = 0; j < L - i - 1; ++j) {
-			runtime_assert(high_l[j] == high_r[j] and (i == sizevalue_max or i < L), "is_less 的循环不变式不被满足");
+			runtime_assert(high_l[j] == high_r[j] && (i == sizevalue_max || i < L), "is_less 的循环不变式不被满足");
 		}
 		if (l[i] < r[i]) {
 			return true;
@@ -466,7 +531,7 @@ template <typename T>
 bool is_less_or_equal(T&& l, T&& r) noexcept
 {
 	// 前置条件: l.size() > 0, r.size() > 0, l.back() != 0, r.back() != 0
-	runtime_assert(l.size() > 0 and r.size() > 0 and (l.size() > 1 ? l.back() != 0 : true) and (r.size() > 1 ? r.back() != 0 : true), "is_less_or_equal 的前置条件不被满足");
+	runtime_assert(l.size() > 0 && r.size() > 0 && (l.size() > 1 ? l.back() != 0 : true) && (r.size() > 1 ? r.back() != 0 : true), "is_less_or_equal 的前置条件不被满足");
 	if (l.size() < r.size()) {
 		return true;
 	}
@@ -486,7 +551,7 @@ bool is_less_or_equal(T&& l, T&& r) noexcept
 		T high_l(l.begin() + i + 1, l.end());
 		T high_r(r.begin() + i + 1, r.end());
 		for (sizevalue j = 0; j < L - i - 1; ++j) {
-			runtime_assert(high_l[j] == high_r[j] and (i == sizevalue_max or i < L), "is_less_or_equal 的循环不变式不被满足");
+			runtime_assert(high_l[j] == high_r[j] && (i == sizevalue_max || i < L), "is_less_or_equal 的循环不变式不被满足");
 		}
 		if (l[i] < r[i]) {
 			return true;
@@ -511,7 +576,7 @@ template <typename T>
 bool is_greater_or_equal(T&& l, T&& r) noexcept
 {
 	// 前置条件: l.size() > 0, r.size() > 0, l.back() != 0, r.back() != 0
-	runtime_assert(l.size() > 0 and r.size() > 0 and (l.size() > 1 ? l.back() != 0 : true) and (r.size() > 1 ? r.back() != 0 : true), "is_less 的前置条件不被满足");
+	runtime_assert(l.size() > 0 && r.size() > 0 && (l.size() > 1 ? l.back() != 0 : true) && (r.size() > 1 ? r.back() != 0 : true), "is_less 的前置条件不被满足");
 	if (l.size() < r.size()) {
 		return false;
 	}
@@ -531,7 +596,7 @@ bool is_greater_or_equal(T&& l, T&& r) noexcept
 		T high_l(l.begin() + i + 1, l.end());
 		T high_r(r.begin() + i + 1, r.end());
 		for (sizevalue j = 0; j < L - i - 1; ++j) {
-			runtime_assert(high_l[j] == high_r[j] and (i == sizevalue_max or i < L), "is_greater_or_equal 的循环不变式不被满足");
+			runtime_assert(high_l[j] == high_r[j] && (i == sizevalue_max || i < L), "is_greater_or_equal 的循环不变式不被满足");
 		}
 		if (l[i] < r[i]) {
 			return false;
@@ -551,37 +616,41 @@ bool is_greater_or_equal(T&& l, T&& r) noexcept
 
 // 在运行 += 函数时，当 right 的值大于等于自身的状态数时，应调用此函数进行后续处理
 // 逻辑规范：
-// 前置条件 P: left, right 皆为有效的数胞 (not left.content.empty() and not right.content.empty())
-// 后置条件 Q: left <- left + right
+// 前置条件 P: left, right 皆为有效的数胞 (!left.content.empty() && !right.content.empty())
+// 后置条件 Q: O(left) := I(left) + I(right)
 void numerical_cell::limit_right_value_then_increase(numerical_cell& left, const numerical_cell& right) noexcept
 {
-	// 前置条件: not left.content.empty() and not right.content.empty()
-	runtime_assert(not left.content.empty() and not right.content.empty(), "limit_right_value_then_increase 的前置条件不被满足");
+	// 前置条件: !left.content.empty() && !right.content.empty()
+	runtime_assert(!left.content.empty() && !right.content.empty(), "limit_right_value_then_increase 的前置条件不被满足");
 	vector<natmax> copy_right_value(right.value().begin(), right.value().end());
 	// copy_right_value = right.value()
 	vector<natmax> remainder = mod_value_by_value(span<natmax>(copy_right_value.data(), copy_right_value.size()), left.number_of_states());
 	// remainder = copy_right_value mod left.number_of_states() = right.value() mod left.number_of_states()
 	numerical_cell limited_right(right.number_of_states(), span<natmax>(remainder.data(), remainder.size()));
 	// limited_right = numerical_cell(right.number_of_states(), remainder)
+	natural_number I_left = left.value();
 	left += limited_right;
-	// 后置条件: left <- left + limited_right = left + right
+	runtime_assert(left.value() == (I_left + limited_right.value()) % natural_number(this->number_of_states()), "limit_right_value_then_increase 的后置条件不被满足");
+	// 后置条件: O(left) := I(left) + limited_right = I(left) + I(right)
 }
 
 // 在运行 += 函数时，当 right 的长度短于自身时，应调用此函数进行进位的传播
 // 逻辑规范：
-// 前置条件 P: parts 为有效的数胞的局部 (not parts.empty()) 并且 (carry = 0 或者 carry = 1)
+// 前置条件 P: parts 为有效的数胞的局部 (!parts.empty()) 并且 (carry = 0 或者 carry = 1)
 // 后置条件 Q: 设 B 为 max(natmax) + 1, parts 以 natmax 为单位的数字向上对齐的结果为 U (U = (max(natmax) + 1)^{parts.size()})
-//   (parts <- parts + carry, carry <- 0) 或者 (parts <- parts + carry - U, carry <- 1)
+//   (O(parts) := I(parts) + I(carry), O(carry) := 0) 或者 (O(parts) := I(parts) + I(carry) - U, O(carry) := 1)
 static void propagate_carry_in_increase(span<natmax>&& parts, nat8& carry) noexcept
 {
-	// 前置条件: not parts.empty()
-	runtime_assert(not parts.empty() and (carry == 0 or carry == 1), "propagate_carry_in_increase 的前置条件不被满足");
+	// 前置条件: !parts.empty()
+	runtime_assert(!parts.empty() && (carry == 0 || carry == 1), "propagate_carry_in_increase 的前置条件不被满足");
 	if (carry == 0) {
 		return;
 	}
+	vector<natmax> I_parts(parts.begin(), parts.end());
+	nat8 I_carry = carry;
 	// 主循环：满足 carry = 1
 	// 循环不变式：
-	//   ∑_{k=0}^{i-1}(parts[k] * B^k) = ∑_{k=0}^{i-1}(parts_{old}[k] * B^k) + carry_{old} - carry_{current} * B^i
+	//   ∑_{k=0}^{i-1}(C(parts)[k] * B^k) = ∑_{k=0}^{i-1}(I(parts)[k] * B^k) + I(carry) - C(carry) * B^i
 	for (sizevalue i = 0; i < parts.size(); ++i) {
 		parts[i] += carry;
 		if (parts[i] != 0) {
@@ -589,31 +658,35 @@ static void propagate_carry_in_increase(span<natmax>&& parts, nat8& carry) noexc
 			break;
 		}
 	}
-	// 后置条件: (parts <- parts + carry, carry <- 0) 或者 (parts <- parts + carry - U, carry <- 1)
+	natural_number U = power(natural_number({ 0, 1 }), parts.size());
+	runtime_assert((natural_number(parts) == natural_number(I_parts) + natural_number({ I_carry }) && carry == 0) || (natural_number(parts) == natural_number(I_parts) + natural_number({ I_carry }) - U && carry == 1), "propagate_carry_in_increase 的后置条件不被满足");
+	// 后置条件: (O(parts) := I(parts) + I(carry), O(carry) := 0) 或者 (O(parts) := I(parts) + I(carry) - U, O(carry) := 1)
 }
 
 // 在调用 += 函数后，当产生进位(carry == 1)或没有产生进位，但是自身的值溢出(产生进位时一定不会溢出)时，应调用此函数
 // 逻辑规范：
-// 前置条件 P: number_of_states, value 皆有效 (not number_of_states.empty() and not value.empty())，且满足 number_of_states.size() = value.size()
+// 前置条件 P: number_of_states, value 皆有效 (!number_of_states.empty() && !value.empty())，且满足 number_of_states.size() = value.size()
 // 后置条件 Q: 设 number_of_states 以 natmax 为单位的数字向上对齐的结果为 U (U = (max(natmax) + 1)^{number_of_states.size()})
-//   value <- value - number_of_states (当value >= number_of_states时)
-//   value <- value + (U - number_of_states) (当value < number_of_states时)
+//   O(value) := I(value) - number_of_states (当value >= number_of_states时)
+//   O(value) := I(value) + (U - number_of_states) (当value < number_of_states时)
 static void limit_value_after_increase(span<natmax>&& number_of_states, span<natmax>&& value) noexcept
 {
-	// 前置条件: not number_of_states.empty() and not value.empty()
-	runtime_assert(not number_of_states.empty() and not value.empty() and number_of_states.size() == value.size(), "limit_value_after_increase 的前置条件不被满足");
+	// 前置条件: !number_of_states.empty() && !value.empty()
+	runtime_assert(!number_of_states.empty() && !value.empty() && number_of_states.size() == value.size(), "limit_value_after_increase 的前置条件不被满足");
 	// 当 number_of_states 的大小为1时，说明 value 的大小理应也为1，此时只需一次计算即可
 	if (number_of_states.size() == 1) {
 		value.front() -= (number_of_states.front());
 		return;
 	}
-	// 如果value >= number_of_states: value <- value - number_of_states，返回
-	// 如果value < number_of_states: value <- value - number_of_states + U (因为value - number_of_states < 0) = value + (U - number_of_states), 返回
+	// 如果value >= number_of_states: O(value) := I(value) - number_of_states，返回
+	// 如果value < number_of_states: O(value) := I(value) - number_of_states + U (因为value - number_of_states < 0) = value + (U - number_of_states), 返回
 	
+	integer_number I_value(value);
+	integer_number U = power(natural_to_integer(vector<natmax>{ 0, 1 }), number_of_states.size());
 	// 主循环：
 	// 循环不变式：
 	//   设 i = it - value.begin(), B 为 max(natmax) + 1
-	//   value_{new} = value_{old} - Low_{i}(number_of_states) + borrow * B^i 并且 i <= value.size()
+	//   C(value) = I(value) - Low_{i}(number_of_states) + borrow * B^i 并且 i <= value.size()
 	//   其中 Low_k(X) 表示 X 的低 k 位组成的自然数
 	auto iterator_of_right = number_of_states.begin();
 	nat8 borrow = 0; // 借位
@@ -628,23 +701,30 @@ static void limit_value_after_increase(span<natmax>&& number_of_states, span<nat
 		nat8 last_borrow = borrow;
 		borrow = 0;
 		// 检查此次减法是否产生借位
-		if (*it > buffer or (last_borrow == 1 and *it == buffer)) {
+		if (*it > buffer || (last_borrow == 1 && *it == buffer)) {
 			borrow = 1; // 使下次减法额外减1（若还有下次减法）
 		}
 		// borrow <- 0 (当不产生借位时)
 		// borrow <- 1 (当产生借位时)
 		++iterator_of_right;
 	}
-	// 后置条件: value <- value - number_of_states (当value >= number_of_states时) 或者 value <- value + (U - number_of_states) (当value < number_of_states时)
+
+	if (I_value >= natural_to_integer(number_of_states)) {
+		runtime_assert(natural_to_integer(value) == I_value - natural_to_integer(number_of_states), "limit_value_after_increase 的后置条件不被满足");
+	}
+	else {
+		runtime_assert(natural_to_integer(value) == I_value + (U - natural_to_integer(number_of_states)), "limit_value_after_increase 的后置条件不被满足");
+	}
+	// 后置条件: O(value) := I(value) - number_of_states (当value >= number_of_states时) 或者 O(value) := I(value) + (U - number_of_states) (当value < number_of_states时)
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())
 // 后置条件 Q: *this <- *this + right
 void numerical_cell::operator+=(const numerical_cell& right) noexcept
 {
-	// 前置条件: not this->content.empty() and not right.content.empty()
-	runtime_assert(not this->content.empty() and not right.content.empty(), "数胞的+=函数的前置条件不被满足");
+	// 前置条件: !this->content.empty() && !right.content.empty()
+	runtime_assert(!this->content.empty() && !right.content.empty(), "数胞的+=函数的前置条件不被满足");
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
@@ -655,10 +735,11 @@ void numerical_cell::operator+=(const numerical_cell& right) noexcept
 	}
 	// 如果 this->number_of_states() <= right_value，则 *this <- *this + right，返回
 
+	natural_number I_self(this->value());
 	// 主循环：满足 this->number_of_states() > right_value
 	// 循环不变式：
 	//   设 i = it - current_value.begin(), B 为 max(natmax) + 1
-	//   *this_{new} = *this_{old} + Low_{i}(right_value) - carry * B^i 并且 i <= current_value.size()
+	//   C(*this) = I(*this) + Low_{i}(right_value) - carry * B^i 并且 i <= current_value.size()
 	//   其中 Low_k(X) 表示 X 的低 k 位组成的自然数
 	auto iterator_of_right = right_value.begin();
 	nat8 carry = 0; // 进位
@@ -677,7 +758,7 @@ void numerical_cell::operator+=(const numerical_cell& right) noexcept
 		nat8 last_carry = carry;
 		carry = 0;
 		// 检查此次加法是否产生进位
-		if (*it < buffer or (last_carry == 1 and *it == buffer)) {
+		if (*it < buffer || (last_carry == 1 && *it == buffer)) {
 			carry = 1; // 使下次加法额外加1 (若还有下次加法)
 		}
 		// carry <- 0 (当不产生进位时)
@@ -687,45 +768,52 @@ void numerical_cell::operator+=(const numerical_cell& right) noexcept
 	// 计算完成后有两种情况
 	// 1. 最后一步产生进位(carry == 1)或没有产生进位，但是自身的值溢出(产生进位时一定不会溢出)，此时需要将自身值减去自身的状态数，方能得到正确结果
 	// 2. 没有产生进位，自身的值也没有溢出，此时不需要进行处理
-	if (carry == 1 or bad()) {
+	if (carry == 1 || bad()) {
 		limit_value_after_increase(this->number_of_states(), this->value());
 	}
+	runtime_assert(this->value() == (I_self + right.value()) % natural_number(this->number_of_states()), "数胞的+=函数的后置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 后置条件: *this <- *this + right
 }
 
 // 在运行 -= 函数时，当 right 的值大于自身的状态数时，应调用此函数进行后续处理
 // 逻辑规范：
-// 前置条件 P: left, right 皆为有效的数胞 (not left.content.empty() and not right.content.empty())
-// 后置条件 Q: left <- left - right
+// 前置条件 P: left, right 皆为有效的数胞 (!left.content.empty() && !right.content.empty())
+// 后置条件 Q: O(left) := I(left) - I(right)
 void numerical_cell::limit_right_value_then_decrease(numerical_cell& left, const numerical_cell& right) const noexcept
 {
-	// 前置条件: not left.content.empty() and not right.content.empty()
-	runtime_assert(not left.content.empty() and not right.content.empty(), "limit_right_value_then_decrease 的前置条件不被满足");
+	// 前置条件: !left.content.empty() && !right.content.empty()
+	runtime_assert(!left.content.empty() && !right.content.empty(), "limit_right_value_then_decrease 的前置条件不被满足");
 	vector<natmax> copy_right_value(right.value().begin(), right.value().end());
 	// copy_right_value = right.value()
 	vector<natmax> remainder = mod_value_by_value(span<natmax>(copy_right_value.data(), copy_right_value.size()), left.number_of_states());
 	// remainder = copy_right_value mod left.number_of_states() = right.value() mod left.number_of_states()
 	numerical_cell limited_right(right.number_of_states(), span<natmax>(remainder.data(), remainder.size()));
 	// limited_right = numerical_cell(right.number_of_states(), remainder)
+	integer_number I_left = natural_to_integer(left.value());
 	left -= limited_right;
-	// 后置条件: left <- left - limited_right = left - right
+	integer_number U = power(integer_number({ 0, 1 }), left.number_of_states().size());
+	runtime_assert(natural_to_integer(left.value()) == (I_left - natural_to_integer(limited_right.value()) + U) % natural_to_integer(this->number_of_states()), "limit_right_value_then_decrease 的后置条件不被满足");
+	// 后置条件: O(left) := I(left) - limited_right = I(left) - I(right)
 }
 
 // 在运行 -= 函数时，当 right 的长度短于自身时，应调用此函数进行借位的传播
 // 逻辑规范：
-// 前置条件 P: parts 为有效的数胞的局部 (not parts.empty()) 并且 (borrow = 0 或者 borrow = 1)
+// 前置条件 P: parts 为有效的数胞的局部 (!parts.empty()) 并且 (borrow = 0 或者 borrow = 1)
 // 后置条件 Q: 设 B 为 max(natmax) + 1, parts 以 natmax 为单位的数字向上对齐的结果为 U (U = (max(natmax) + 1)^{parts.size()})
-//   (parts <- parts - borrow, borrow <- 0) 或者 (parts <- parts - borrow + U, borrow <- 1)
+//   (O(parts) := I(parts) - I(borrow), O(borrow) := 0) 或者 (O(parts) := I(parts) - I(borrow) + U, O(borrow) := 1)
 static void propagate_borrow_in_decrease(span<natmax>&& parts, nat8& borrow) noexcept
 {
-	// 前置条件: not parts.empty()
-	runtime_assert(not parts.empty() and (borrow == 1 or borrow == 1), "propagate_borrow_in_decrease 的前置条件不被满足");
+	// 前置条件: !parts.empty()
+	runtime_assert(!parts.empty() && (borrow == 1 || borrow == 1), "propagate_borrow_in_decrease 的前置条件不被满足");
 	if (borrow == 0) {
 		return;
 	}
+
+	vector<natmax> I_parts(parts.begin(), parts.end());
+	nat8 I_borrow = borrow;
 	// 主循环：满足 borrow = 1
 	// 循环不变式：
-	//   ∑_{k=0}^{i-1}(parts[k] * B^k) = ∑_{k=0}^{i-1}(parts_{old}[k] * B^k) - borrow_{old} + borrow_{current} * B^i
+	//   ∑_{k=0}^{i-1}(C(parts)[k] * B^k) = ∑_{k=0}^{i-1}(I(parts)[k] * B^k) - I(borrow) + C(borrow) * B^i
 	for (sizevalue i = 0; i < parts.size(); ++i) {
 		parts[i] -= borrow;
 		if (parts[i] != natmax_max) {
@@ -733,31 +821,35 @@ static void propagate_borrow_in_decrease(span<natmax>&& parts, nat8& borrow) noe
 			break;
 		}
 	}
-	// 后置条件: (parts <- parts - borrow, borrow <- 0) 或者 (parts <- parts - borrow + U, borrow <- 1)
+	integer_number U = power(integer_number({ 0, 1 }), parts.size());
+	runtime_assert((natural_to_integer(parts) == natural_to_integer(I_parts) - integer_number({ I_borrow }) && borrow == 0) || (natural_to_integer(parts) == natural_to_integer(I_parts) - integer_number({ I_borrow }) + U && borrow == 1), "propagate_carry_in_increase 的后置条件不被满足");
+	// 后置条件: (O(parts) := I(parts) - I(borrow), O(borrow) := 0) 或者 (O(parts) := I(parts) - I(borrow) + U, O(borrow) := 1)
 }
 
 // 在调用 -= 函数后，当需要对溢出值进行限制时，应调用此函数
 // 逻辑规范：
-// 前置条件 P: number_of_states, value 皆有效 (not number_of_states.empty() and not value.empty())，且满足 number_of_states.size() = value.size()
+// 前置条件 P: number_of_states, value 皆有效 (!number_of_states.empty() && !value.empty())，且满足 number_of_states.size() = value.size()
 // 后置条件 Q: 设 number_of_states 以 natmax 为单位的数字向上对齐的结果为 U (U = (max(natmax) + 1)^{number_of_states.size()})
-//   value <- value + number_of_states (当value < number_of_states时)
-//   value <- value - (U - number_of_states) (当value >= number_of_states时)
+//   O(value) := I(value) + number_of_states (当value < number_of_states时)
+//   O(value) := I(value) - (U - number_of_states) (当value >= number_of_states时)
 static void limit_value_after_decrease(span<natmax>&& number_of_states, span<natmax>&& value) noexcept
 {
-	// 前置条件: not number_of_states.empty() and not value.empty()
-	runtime_assert(not number_of_states.empty() and not value.empty() and number_of_states.size() == value.size(), "limit_value_after_decrease 的前置条件不被满足");
+	// 前置条件: !number_of_states.empty() && !value.empty()
+	runtime_assert(!number_of_states.empty() && !value.empty() && number_of_states.size() == value.size(), "limit_value_after_decrease 的前置条件不被满足");
 	// 当 number_of_states 的大小为1时，说明 value 的大小理应也为1，此时只需一次计算即可
 	if (number_of_states.size() == 1) {
 		value.front() += (number_of_states.front());
 		return;
 	}
-	// 如果value < number_of_states: value <- value + number_of_states，返回
-	// 如果value >= number_of_states: value <- value + number_of_states - U (因为value + number_of_states >= U) = value - (U - number_of_states), 返回
+	// 如果value < number_of_states: O(value) := I(value) + number_of_states，返回
+	// 如果value >= number_of_states: O(value) := I(value) + number_of_states - U (因为value + number_of_states >= U) = value - (U - number_of_states), 返回
 
+	integer_number I_value = natural_to_integer(value);
+	integer_number U = power(natural_to_integer(vector<natmax>{ 0, 1 }), number_of_states.size());
 	// 主循环：
 	// 循环不变式：
 	//   设 i = it - value.begin(), B 为 max(natmax) + 1
-	//   value_{new} = value_{old} + Low_{i}(number_of_states) - carry * B^i 并且 i <= value.size()
+	//   C(value) = I(value) + Low_{i}(number_of_states) - carry * B^i 并且 i <= value.size()
 	//   其中 Low_k(X) 表示 X 的低 k 位组成的自然数
 	auto iterator_of_right = number_of_states.begin();
 	nat8 carry = 0; // 借位
@@ -772,23 +864,30 @@ static void limit_value_after_decrease(span<natmax>&& number_of_states, span<nat
 		nat8 last_carry = carry;
 		carry = 0;
 		// 检查此次加法是否产生进位
-		if (*it < buffer or (last_carry == 1 and *it == buffer)) {
+		if (*it < buffer || (last_carry == 1 && *it == buffer)) {
 			carry = 1; // 使下次加法额外加1（若还有下次加法）
 		}
 		// carry <- 0 (当不产生进位时)
 		// carry <- 1 (当产生进位时)
 		++iterator_of_right;
 	}
-	// 后置条件: value <- value + number_of_states (当value < number_of_states时) 或者 value <- value - (U - number_of_states) (当value >= number_of_states时)
+
+	if (I_value < natural_to_integer(number_of_states)) {
+		runtime_assert(natural_to_integer(value) == I_value + natural_to_integer(number_of_states), "limit_value_after_decrease 的后置条件不被满足");
+	}
+	else {
+		runtime_assert(natural_to_integer(value) == I_value - (U - natural_to_integer(number_of_states)), "limit_value_after_decrease 的后置条件不被满足");
+	}
+	// 后置条件: O(value) := I(value) + number_of_states (当value < number_of_states时) 或者 O(value) := I(value) - (U - number_of_states) (当value >= number_of_states时)
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())
 // 后置条件 Q: *this <- *this - right
 void numerical_cell::operator-=(const numerical_cell& right) noexcept
 {
-	// 前置条件: not this->content.empty() and not right.content.empty()
-	runtime_assert(not this->content.empty() and not right.content.empty(), "数胞的-=函数的前置条件不被满足");
+	// 前置条件: !this->content.empty() && !right.content.empty()
+	runtime_assert(!this->content.empty() && !right.content.empty(), "数胞的-=函数的前置条件不被满足");
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
@@ -799,10 +898,11 @@ void numerical_cell::operator-=(const numerical_cell& right) noexcept
 	}
 	// 如果 this->number_of_states() <= right_value，则 *this <- *this - right，返回
 
+	integer_number I_self = natural_to_integer(this->value());
 	// 主循环：满足 this->number_of_states() > right_value
 	// 循环不变式：
 	//   设 i = it - value.begin(), B 为 max(natmax) + 1
-	//   *this_{new} = *this_{old} - Low_{i}(right_value) + borrow * B^i 并且 i <= current_value.size()
+	//   C(*this) = I(*this) - Low_{i}(right_value) + borrow * B^i 并且 i <= current_value.size()
 	//   其中 Low_k(X) 表示 X 的低 k 位组成的自然数
 	auto iterator_of_right = right_value.begin();
 	nat8 borrow = 0; // 借位
@@ -821,7 +921,7 @@ void numerical_cell::operator-=(const numerical_cell& right) noexcept
 		nat8 last_borrow = borrow;
 		borrow = 0;
 		// 检查此次减法是否产生借位
-		if (*it > buffer or (last_borrow == 1 and *it == buffer)) {
+		if (*it > buffer || (last_borrow == 1 && *it == buffer)) {
 			borrow = 1; // 使下次减法额外减1（若还有下次减法）
 		}
 		// borrow <- 0 (当不产生借位时)
@@ -831,44 +931,53 @@ void numerical_cell::operator-=(const numerical_cell& right) noexcept
 	// 计算完成后有两种情况
 	// 1. 自身的值溢出(value >= number_of_states，溢出时一定产生借位)或自身的值没有溢出，但是最后一步产生借位，此时需要将自身值加上自身的状态数，方能得到正确结果
 	// 2. 自身的值没有溢出，也没有产生借位，此时不需要进行处理
-	if (borrow == 1 or bad()) {
+	if (borrow == 1 || bad()) {
 		limit_value_after_decrease(this->number_of_states(), this->value());
 	}
+	integer_number U = power(integer_number({ 0, 1 }), this->number_of_states().size());
+	runtime_assert(natural_to_integer(this->value()) == (I_self - natural_to_integer(right.value()) + U) % natural_to_integer(this->number_of_states()), "数胞的-=函数的后置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 后置条件: *this <- *this - right
 }
 
 // 在运行 *= 函数时，当 right 的值大于自身的状态数时，应调用此函数进行后续处理
 // 逻辑规范：
-// 前置条件 P: left, right 皆为有效的数胞 (not left.content.empty() and not right.content.empty())
-// 后置条件 Q: left <- left * right
+// 前置条件 P: left, right 皆为有效的数胞 (!left.content.empty() && !right.content.empty())
+// 后置条件 Q: O(left) := I(left) * I(right)
 void numerical_cell::limit_right_value_then_multiply(numerical_cell& left, const numerical_cell& right) noexcept
 {
-	// 前置条件: not left.content.empty() and not right.content.empty()
-	runtime_assert(not left.content.empty() and not right.content.empty(), "limit_right_value_then_multiply 的前置条件不被满足");
+	// 前置条件: !left.content.empty() && !right.content.empty()
+	runtime_assert(!left.content.empty() && !right.content.empty(), "limit_right_value_then_multiply 的前置条件不被满足");
 	vector<natmax> copy_right_value(right.value().begin(), right.value().end());
 	// copy_right_value = right.value()
 	vector<natmax> remainder = mod_value_by_value(span<natmax>(copy_right_value.data(), copy_right_value.size()), left.number_of_states());
 	// remainder = copy_right_value mod left.number_of_states() = right.value() mod left.number_of_states()
 	numerical_cell limited_right(right.number_of_states(), span<natmax>(remainder.data(), remainder.size()));
 	// limited_right = numerical_cell(right.number_of_states(), remainder)
+	natural_number I_left = left.value();
 	left *= limited_right;
-	// 后置条件: left <- left * limited_right = left * right
+	runtime_assert(natural_number(left.value()) == (I_left * right.value()) % left.number_of_states(), "limit_right_value_then_multiply 的后置条件不被满足");
+	// 后置条件: O(left) := I(left) * limited_right = I(left) * I(right)
 }
 
 // 在运行 *= 函数时，当处理中间数据时，应调用此函数进行进位的传播
 // 逻辑规范：
-// 前置条件 P: parts 为有效的数胞的局部 (not parts.empty()) 并且 parts 足够容纳进位的结果 ((parts + carry).size() <= parts.size())
+// 前置条件 P: parts 为有效的数胞的局部 (!parts.empty()) 并且 parts 足够容纳进位的结果 ((parts + carry).size() <= parts.size())
 // 后置条件 Q: 设 B 为 max(nathalf) + 1
-//   parts <- parts + carry, carry <- 0
+//   O(parts) := I(parts) + I(carry), O(carry) := 0
 static void propagate_carry_in_multiply(span<nathalf>&& parts, nathalf& carry) noexcept
 {
-	// 前置条件: not parts.empty()
+	// 前置条件: !parts.empty()
+	natural_number temporary_parts = span<natmax>((natmax*)parts.data(), parts.size() / 2 + parts.size() % 2);
+	runtime_assert(not parts.empty() and (temporary_parts + natural_number({ carry })).content.size() <= parts.size(), "propagate_carry_in_multiply 的前置条件不被满足");
 	if (carry == 0) {
 		return;
 	}
+	vector<natmax> I_parts(parts.size() / 2 + parts.size() % 2);
+	memcpy(I_parts.data(), parts.data(), I_parts.size() * sizeof(natmax));
+	nathalf I_carry = carry;
 	// 主循环：满足 carry = 1
 	// 循环不变式：
-	//   ∑_{k=0}^{i-1}(parts[k] * B^k) = ∑_{k=0}^{i-1}(parts_{old}[k] * B^k) + carry_{old} - carry_{current} * B^i
+	//   ∑_{k=0}^{i-1}(C(parts)[k] * B^k) = ∑_{k=0}^{i-1}(I(parts)[k] * B^k) + I(carrr) - C(carry) * B^i
 	for (sizevalue i = 0; i < parts.size(); ++i) {
 		nathalf buffer = parts[i];
 		parts[i] += carry;
@@ -880,16 +989,19 @@ static void propagate_carry_in_multiply(span<nathalf>&& parts, nathalf& carry) n
 			carry = 1;
 		}
 	}
-	// 后置条件: parts <- parts + carry, carry <- 0
+
+	natural_number U = power(natural_number({ NUMBER_OF_NATHALF_STATE }), parts.size());
+	runtime_assert(natural_number(span<natmax>((natmax*)parts.data(), parts.size() / 2 + parts.size() % 2)) == natural_number(I_parts) + natural_number({ I_carry }) and carry == 0, "propagate_carry_in_increase 的后置条件不被满足");
+	// 后置条件: O(parts) := I(parts) + I(carry), O(carry) := 0
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())
 // 后置条件 Q: *this <- *this * right
 void numerical_cell::operator*=(const numerical_cell& right) noexcept
 {
-	// 前置条件: not this->content.empty() and not right.content.empty()
-	runtime_assert(not this->content.empty() and not right.content.empty(), "数胞的*=函数的前置条件不被满足");
+	// 前置条件: !this->content.empty() && !right.content.empty()
+	runtime_assert(!this->content.empty() && !right.content.empty(), "数胞的*=函数的前置条件不被满足");
 	span<natmax> current_value = this->value();
 	span<natmax> current_number_of_states = this->number_of_states();
 	span<natmax> right_value = right.value();
@@ -901,8 +1013,9 @@ void numerical_cell::operator*=(const numerical_cell& right) noexcept
 	}
 	// 如果 this->number_of_states() <= right_value，则 *this <- *this * right，返回
 
+	natural_number I_self = this->value();
 	// 如果满足以下条件，则 current_value.front() * right_value.front() <= NATMAX_MAX
-	if (current_value.size() == 1 and right_value.size() == 1 and current_value.front() <= nat32_max and right_value.front() <= nat32_max) {
+	if (current_value.size() == 1 && right_value.size() == 1 && current_value.front() <= nat32_max && right_value.front() <= nat32_max) {
 		current_value.front() *= right_value.front();
 		// 如果相乘后自身的值大于等于自身的状态数限制，需要进行限制
 		if (is_greater_or_equal(span<natmax>(current_value), span<natmax>(current_number_of_states))) {
@@ -977,24 +1090,28 @@ void numerical_cell::operator*=(const numerical_cell& right) noexcept
 	// final_intermediate_data <- final_intermediate_data mod current_number_of_states
 	memset(current_value.data(), 0, current_value.size());
 	memcpy(current_value.data(), final_intermediate_data.data(), final_intermediate_data.size() * sizeof(natmax));
+
+	runtime_assert(natural_number(this->value()) == (I_self * right.value()) % this->number_of_states(), "数胞的*=函数的后置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 后置条件: *this <- *this * right
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 right 的值不为 0
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 right 的值不为 0
 // 后置条件 Q: *this <- *this / right
 void numerical_cell::operator/=(const numerical_cell& right)
 {
-	// 前置条件: not this->content.empty() and not right.content.empty()
-	runtime_assert(not this->content.empty() and not right.content.empty(), "数胞的/=函数的前置条件不被满足");
+	// 前置条件: !this->content.empty() && !right.content.empty()
+	runtime_assert(!this->content.empty() && !right.content.empty(), "数胞的/=函数的前置条件不被满足");
 
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
 	current_value = current_value.subspan(0, find_if(current_value.rbegin(), --current_value.rend(), [](const natmax v) { return v != 0; }).base() - current_value.begin());
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
 
+	natural_number I_self = current_value;
+	runtime_assert(not (right_value.size() == 1 and right_value.front() == 0), "数胞的%=函数中除数为0，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 如果满足以下条件，可以直接进行单次相除得到结果
-	if (current_value.size() == 1 and right_value.size() == 1) {
+	if (current_value.size() == 1 && right_value.size() == 1) {
 		current_value.front() /= right_value.front();
 		return;
 	}
@@ -1007,24 +1124,28 @@ void numerical_cell::operator/=(const numerical_cell& right)
 	vector<natmax> result = div_value_by_value(current_value, right_value);
 	memset(current_value.data(), 0, current_value.size() * sizeof(natmax));
 	memcpy(current_value.data(), result.data(), result.size() * sizeof(natmax));
+
+	runtime_assert(this->value() == I_self / natural_number(right_value), "数胞的/=函数的后置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 后置条件: *this <- *this / right
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 right 的值不为 0
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 right 的值不为 0
 // 后置条件 Q: *this <- *this / right
 void numerical_cell::operator%=(const numerical_cell& right)
 {
-	// 前置条件: not this->content.empty() and not right.content.empty()
-	runtime_assert(not this->content.empty() and not right.content.empty(), "数胞的%=函数的前置条件不被满足");
+	// 前置条件: !this->content.empty() && !right.content.empty()
+	runtime_assert(!this->content.empty() && !right.content.empty(), "数胞的%=函数的前置条件不被满足");
 
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
 	current_value = current_value.subspan(0, find_if(current_value.rbegin(), --current_value.rend(), [](const natmax v) { return v != 0; }).base() - current_value.begin());
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
 
+	natural_number I_self = current_value;
+	runtime_assert(not (right_value.size() == 1 and right_value.front() == 0), "数胞的%=函数中除数为0，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 如果满足以下条件，可以直接进行单次相除得到结果
-	if (current_value.size() == 1 and right_value.size() == 1) {
+	if (current_value.size() == 1 && right_value.size() == 1) {
 		current_value.front() %= right_value.front();
 		return;
 	}
@@ -1034,74 +1155,76 @@ void numerical_cell::operator%=(const numerical_cell& right)
 	}
 	// 满足 current_value >= right_value
 	mod_value_by_value(current_value, right_value);
+
+	runtime_assert(this->value() == I_self % natural_number(right_value), "数胞的%=函数的后置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(I_self.content) + "，操作数的值为" + generate_information_of_linear_table(right_value));
 	// 后置条件: *this <- *this / right
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 *this 与 right 的状态数相同
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 *this 与 right 的状态数相同
 // 后置条件 Q: 输出 *this + right
 numerical_cell numerical_cell::operator+(const numerical_cell& right) const noexcept
 {
-	runtime_assert(not this->content.empty() and not right.content.empty() and is_equal(this->number_of_states(), right.number_of_states()), "数胞的+函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
+	runtime_assert(!this->content.empty() && !right.content.empty() && is_equal(this->number_of_states(), right.number_of_states()), "数胞的+函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
 	numerical_cell result = *this;
 	result += right;
 	return std::move(result);
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 *this 与 right 的状态数相同
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 *this 与 right 的状态数相同
 // 后置条件 Q: 输出 *this - right
 numerical_cell numerical_cell::operator-(const numerical_cell& right) const noexcept
 {
-	runtime_assert(not this->content.empty() and not right.content.empty() and is_equal(this->number_of_states(), right.number_of_states()), "数胞的-函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
+	runtime_assert(!this->content.empty() && !right.content.empty() && is_equal(this->number_of_states(), right.number_of_states()), "数胞的-函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
 	numerical_cell result = *this;
 	result -= right;
 	return std::move(result);
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 *this 与 right 的状态数相同
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 *this 与 right 的状态数相同
 // 后置条件 Q: 输出 *this * right
 numerical_cell numerical_cell::operator*(const numerical_cell& right) const noexcept
 {
-	runtime_assert(not this->content.empty() and not right.content.empty() and is_equal(this->number_of_states(), right.number_of_states()), "数胞的*函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
+	runtime_assert(!this->content.empty() && !right.content.empty() && is_equal(this->number_of_states(), right.number_of_states()), "数胞的*函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
 	numerical_cell result = *this;
 	result *= right;
 	return std::move(result);
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 *this 与 right 的状态数相同，且 right 的值不为 0
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 *this 与 right 的状态数相同，且 right 的值不为 0
 // 后置条件 Q: 输出 *this / right
 numerical_cell numerical_cell::operator/(const numerical_cell& right) const
 {
 	span<natmax> right_value = right.value();
-	runtime_assert(not this->content.empty() and not right.content.empty() and is_equal(this->number_of_states(), right.number_of_states()) and not all_of(right_value.begin(), right_value.end(), [](natmax v) { return v == 0; }), "数胞的/函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
+	runtime_assert(!this->content.empty() && !right.content.empty() && is_equal(this->number_of_states(), right.number_of_states()) && !all_of(right_value.begin(), right_value.end(), [](natmax v) { return v == 0; }), "数胞的/函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
 	numerical_cell result = *this;
 	result /= right;
 	return std::move(result);
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())，且 *this 与 right 的状态数相同，且 right 的值不为 0
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())，且 *this 与 right 的状态数相同，且 right 的值不为 0
 // 后置条件 Q: 输出 *this % right
 numerical_cell numerical_cell::operator%(const numerical_cell& right) const
 {
 	span<natmax> right_value = right.value();
-	runtime_assert(not this->content.empty() and not right.content.empty() and is_equal(this->number_of_states(), right.number_of_states()) and not all_of(right_value.begin(), right_value.end(), [](natmax v) { return v == 0; }), "数胞的%函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
+	runtime_assert(!this->content.empty() && !right.content.empty() && is_equal(this->number_of_states(), right.number_of_states()) && !all_of(right_value.begin(), right_value.end(), [](natmax v) { return v == 0; }), "数胞的%函数的前置条件不被满足，自身的状态数为" + generate_information_of_linear_table(number_of_states()) + "，自身的值为" + generate_information_of_linear_table(this->value()) + "，操作数的值为" + generate_information_of_linear_table(right.value()));
 	numerical_cell result = *this;
 	result %= right;
 	return std::move(result);
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())
 // 后置条件 Q: 输出 *this == right
 bool numerical_cell::operator==(const numerical_cell& right) const noexcept
 {
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
-	runtime_assert(not current_value.empty() and not right_value.empty(), "数胞的==函数的前置条件不被满足");
+	runtime_assert(!current_value.empty() && !right_value.empty(), "数胞的==函数的前置条件不被满足");
 	current_value = current_value.subspan(0, find_if(current_value.rbegin(), --current_value.rend(), [](const natmax v) { return v != 0; }).base() - current_value.begin());
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
 	sizevalue min_size = min(current_value.size(), right_value.size());
@@ -1117,13 +1240,13 @@ bool numerical_cell::operator==(const numerical_cell& right) const noexcept
 }
 
 // 逻辑规范：
-// 前置条件 P: *this, right 皆有效 (not this->content.empty() and not right.content.empty())
+// 前置条件 P: *this, right 皆有效 (!this->content.empty() && !right.content.empty())
 // 后置条件 Q: 输出 *this <=> right
 weak_ordering numerical_cell::operator<=>(const numerical_cell& right) const noexcept
 {
 	span<natmax> current_value = this->value();
 	span<natmax> right_value = right.value();
-	runtime_assert(not current_value.empty() and not right_value.empty(), "数胞的<=>函数的前置条件不被满足");
+	runtime_assert(!current_value.empty() && !right_value.empty(), "数胞的<=>函数的前置条件不被满足");
 	current_value = current_value.subspan(0, find_if(current_value.rbegin(), --current_value.rend(), [](const natmax v) { return v != 0; }).base() - current_value.begin());
 	right_value = right_value.subspan(0, find_if(right_value.rbegin(), --right_value.rend(), [](const natmax v) { return v != 0; }).base() - right_value.begin());
 	sizevalue min_size = min(current_value.size(), right_value.size());
