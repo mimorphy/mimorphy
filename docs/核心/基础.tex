@@ -148,9 +148,13 @@
 
 \qquad 因此，此计算机中大部分的操作至少都可以一次性处理$8$个字节，例如加减乘除等。
 
-\section{数胞}
 
-\textbf{开头：我们要解决什么问题？}
+
+
+\newpage
+\section{数胞与伪代码}
+
+\subsection{数胞}
 
 \qquad 在前面的章节中，我们学习了比特、字节等存储单元。我们发现，无论是哪种进制的计算机，其存储单元都可以被概括为两个核心属性：
 
@@ -160,9 +164,9 @@
 
 \qquad 为了用一种统一、简洁的数学语言来描述计算机中所有的存储空间，我们引入了“数胞”（Numerical Cell）这一抽象概念。它将帮助我们跳出二进制、十进制等具体进制的限制，从更高层面理解存储的本质。
 
-\subsection{数胞的定义与表示}
+\subsubsection{数胞的定义与表示}
 
-一个数胞（NC）可以由一个二元组完整定义：
+\qquad 一个数胞（NC）可以由一个二元组完整定义：
 \[
 NC \equiv (\var{n},\ \var{m})
 \]
@@ -172,7 +176,7 @@ NC \equiv (\var{n},\ \var{m})
     \item $\var{m}$：表示该数胞的\textbf{值}（Value）。它是该存储单元在当前时刻的具体状态，是一个自然数，且必须满足 $0 \leq \var{m} < \var{n}$。
 \end{itemize}
 
-\subsection{数胞的简写符号}
+\subsubsection{数胞的简写符号}
 
 为了书写方便，我们定义了一套简写符号：
 \begin{itemize}
@@ -188,7 +192,7 @@ NC \equiv (\var{n},\ \var{m})
     \item $NC_{10}(7)$：表示一个状态数为10（即十进制）、当前值为7的数胞。这可以想象为一个十进制的基本存储单元。
 \end{itemize}
 
-\subsection{数胞的抽象意义}
+\subsubsection{数胞的抽象意义}
 
 “计算机中所有的存储空间都可以抽象为一个数胞。” 这句话的含义是：无论存储空间的实际物理实现如何，我们都可以用数胞的二元组模型$(\var{n},\ \var{m})$来刻画它。
 
@@ -200,12 +204,327 @@ NC \equiv (\var{n},\ \var{m})
 
 数胞的抽象威力在于其通用性。它不关心底层是二进制电路、三进制器件还是其他任何物理实现，它只关心逻辑上的状态数量和一个具体的状态值。这使得我们可以在统一的框架下讨论不同架构的计算机存储问题。
 
-\subsection{状态数公式的再现}
+\subsubsection{状态数公式的再现}
 
 一个由$\var{k}$个$NC_{\var{n}}$类型的数胞连续组成的存储空间，其总状态数正是我们熟悉的公式：
 \[
 \text{总状态数} = \var{n}^{\var{k}}
 \]
 这个公式解释了为什么一个由8个$NC_2$（比特）组成的字节($\var{n}=2, \var{k}=8$)有256种状态($2^8$)，也解释了一个由2个$NC_{10}$（十进制单元）组成的存储空间有100种状态($10^2$)。
+
+\subsection{伪代码}
+
+\qquad 伪代码是一种类似自然语言和编程语言的混合描述方式，用于表达算法逻辑而不受具体编程语法限制。它像是算法的“蓝图”，帮助我们在编写实际代码前理清思路。
+
+\textbf{为什么使用伪代码？}
+\begin{itemize}
+    \item 语言无关：无论使用什么编程语言，伪代码都适用。
+    \item 专注于逻辑：避免被具体语法细节干扰。
+    \item 易于理解：即使是初学者也能看懂基本逻辑。
+    \item 便于协作：团队讨论算法时可作为“通用”语言。
+\end{itemize}
+
+之后的内容或多或少都有可能使用伪代码描述具体算法。
+
+\subsubsection{变量与常量}
+
+\qquad 变量是存储数据的容器，其值可以在程序运行过程中改变。你可以把变量想象成一个贴了标签的盒子，盒子里可以放不同的东西，但标签名称保持不变。
+在硬件层面，变量是一块被标记了的存储空间，存储具体的值。在软件层面，变量有一个名称，使用这个名称可以访问到其代表的存储空间，并可以读取或写入这块存储空间。
+
+\qquad 常量是值，或者是不会改变的命名数据。一旦定义，其值在整个程序运行期间保持不变。
+在伪代码中，我们可以说明一个名称代表常量，那么之后就不能再直接修改它的值。
+
+\qquad 虽然伪代码不严格要求数据类型，但了解常见类型有助于设计更好的算法。
+例如，我们可以说明变量\[\var{x}:\text{自然数}\]是自然数，说明常量\[\var{y}:\text{整数} := 0\]是一个为$0$的整数。
+在这里，“$:=$”表示定义符号，通常用于声明一个常量。
+
+\subsubsection{赋值}
+
+\qquad 赋值是计算机语言中几乎最常见的操作。我们规定使用左箭头表示赋值，例如：
+\[\var{x} \leftarrow 3\]
+表示把$3$这个值赋给$\var{x}$这个变量，在这条代码执行之后，直到$\var{x}$的值再次被改变之前，$\var{x}$存储的值将保持为$3$。
+
+\qquad 如果赋值的对象是常量，我们规定这是错误的写法，例如：
+\[5 \leftarrow 3\]
+或者，假设存在常量$\alpha = 5$：
+\[\alpha \leftarrow 3\]
+这两种都是错误的写法，显然，一个数字不能被直接赋予另一个数字的值。
+
+\subsubsection{函数}
+
+\qquad 函数是一些代码或功能的封装与抽象。我们可以定义函数：
+\[\mathrm{f}(x_1, x_2, \dots, x_{\var{n}})\]
+其中$\mathrm{f}$是函数的名称，$x_1, x_2, \dots, x_{\var{n}}$是函数的$\var{n}$个参数，$\var{n}$可以是任意自然数。
+
+\qquad 在定义了函数之后，可以使用它的名称和实际的参数获取它的结果，例如：
+\[\mathrm{f}(\var{x}) := \var{x} + \var{x}\]
+\[\var{y} \leftarrow \mathrm{f}(2)\]
+那么在执行过后，有$\var{y} = 4$。
+
+\qquad 在计算过程中，如果函数除了返回值外还会改变程序的状态（例如修改全局变量、进行输入输出等），则称该函数具有副作用。
+与带副作用的函数相对，函数式风格强调使用纯函数：函数的输出仅由输入决定，且不产生任何副作用。
+
+\qquad 我们规定，对于一个纯函数$\mathrm{g}(\var{x}, \var{y}) := \var{x} + \var{y}$，如果这样使用：
+\[\var{z} \leftarrow \mathrm{g}(1)\]
+那么$\var{z}$这个变量是一个函数，它输入一个参数$\var{y}$，输出$1 + \var{y}$。可以视为未完成的$\mathrm{g}$函数，等待之后的参数输入，再输出最终结果。
+
+\subsubsection{分支与循环}
+
+\qquad 编程语言通常有三种执行结构，顺序结构、分支结构、循环结构。
+
+\qquad 顺序结构，顾名思义，将$\var{n}$条代码(例如赋值语句)以顺序的方式一条条写下来，其执行过程就是顺序执行，例如：
+\[\var{x} \leftarrow 2\]
+\[\var{y} \leftarrow \var{x} + 6\]
+\[\var{z} \leftarrow \var{y} / \var{x}\]
+
+重点在于分支结构和循环结构。
+
+\qquad 分支结构中有多个分支，每个分支可以是数句代码，我们通常可以使用这样的语法结构表示：
+\begin{align*}
+    &\text{如果} \; C \; \text{则} &A \\
+    &\text{否则} &B \\
+\end{align*}
+其中，$C$是一个条件，它的结果是一个布尔值，即真或假。如果为真，则执行$A$，不执行$B$；如果为假，则执行$B$，不执行$A$。
+
+\qquad 循环结构有多种表示方式，例如当型循环和直到型循环。
+
+当型循环的结构如下：
+\[\text{当} \; C \; \text{则} \; A\]
+
+直到型循环的结构如下：
+\[\text{执行} \; A \; \text{直到} \; C\]
+
+其中$C$是条件，$A$是循环体，即其他代码，区别在于：当型循环先判断是否要进入函数体，再执行；直到型循环先执行函数体，再判断是否要回过头继续执行循环体。
+
+\qquad 这三种结构可以互相嵌套，例如，循环结构内可以是分支结构，也可以是另一个循环结构。
+
+\subsection{数胞的运算}
+
+\qquad 在数胞的运算中，我们默认互相运算的两个数胞，其状态数是相同的。
+
+\qquad 无论是什么运算，其结果若可能超出状态数的限制，即数胞的值溢出，则需要通过取模限制在状态数内。例如数胞的加法：
+\[\var{a} : NC_{\var{n}} + \var{b} : NC_{\var{n}} \equiv NC_{\var{n}}((\var{a}\text{的值} + \var{b}\text{的值}) \bmod \var{n})\]
+
+减法、乘法、除法(整除)、取模同理，只是把上述表达式的加法符号替换掉。只不过由于除法和取模的结果不会导致数胞的值变得更大，且结果恒大于等于$0$，因此一个数胞经过除法和取模运算之后，可以省略$\bmod \; \var{n}$这个步骤。
+
+\subsubsection{任意进制的长除法}
+
+\qquad 在计算机中，我们常常需要处理超出单个数胞表示范围的大数。
+虽然现代编程语言通常提供了大数运算库，但理解其底层原理——特别是如何在任意进制下进行除法运算——对于深入理解计算机算术至关重要。
+
+\qquad 长除法是一种适用于任意进制的算法，它通过迭代的方式，将复杂的除法问题分解为一系列简单的单数胞运算。
+这种方法的核心思想与我们在小学学习的十进制长除法完全相同，只是将其推广到了任意进制$\var{b}$。
+
+\qquad 考虑两个自然数：被除数$\var{D}$和除数$\var{d}$，其中$\var{d} \ne 0$。我们的目标是找到商$\var{Q}$和余数$\var{R}$，使得：
+\[\var{D} = \var{Q} \times \var{d} + \var{R}, \text{其中} 0 \le \var{R} < \var{d}\]
+
+\qquad 现在，假设我们不是在十进制下，而是在$\var{b}$进制下表示这些数字($\var{b} \ge 2$)。那么$\var{D}$和$\var{d}$可以表示为：
+\begin{align*}
+    \var{D} &= (\var{d}_{\var{n}-1}\var{d}_{\var{n}-2}\dots\var{d}_1\var{d}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{d}_{\var{i}}\times\var{b}^{\var{i}} \\
+    \var{d} &= \text{除数在进制}\var{b}\text{的表示}
+\end{align*}
+
+\qquad 长除法的过程就是从被除数的高位开始，逐位(或逐小组)地处理，每一步计算部分被除数除以除数的结果。
+
+\subsubsection*{算法步骤}
+
+\qquad 以下是任意进制$\var{b}$下长除法的通用算法步骤：
+\begin{align*}
+    &\var{R} : \mathbb{N} \leftarrow \var{D}, \var{Q} : \mathbb{N} \leftarrow 0 \\
+    &\var{i} : NC_{\var{WORDSIZEMAX}+1} \leftarrow 0, \text{其中}\var{WORDSIZEMAX}\text{是当前计算机可表示的最大地址} \\
+    &\text{当} \; \var{i} < \var{n} \; \text{则} \\
+    &\qquad \var{sub} : \mathbb{N} \leftarrow \var{R}\text{从最高位到}\var{n - 1}\text{位(从0开始计数)的数字所表示的值} \\
+    &\qquad \text{如果} \; \var{sub} \ge \var{d} \text{则令}\var{R}\text{对应于}\var{sub}\text{的部分更新为减去}\var{d}\text{所剩的值}, \\
+    &\qquad \qquad\var{Q} \leftarrow \var{Q} + \var{sub}\text{向下取}\var{d}\text{的倍数} \times \var{b}^{\var{n} - 1 - \var{i}} \\
+    &\qquad \var{i} \leftarrow \var{i} + 1 \\
+\end{align*}
+执行完成后，$\var{Q}$就是长除法得到的商，$\var{R}$就是长除法得到的余数。
+
+\qquad 对于令$\var{R}$对应于$\var{sub}$的部分更新为减去$\var{d}$所剩的值，为了方便理解，我们使用一个十进制下的例子。
+假设当前$\var{R} = 12368$，$\var{sub}$为最高位到第二位(从0开始计数)，即$123$，且$\var{d} = 106$，那么更新过后，$\var{R} = 1768$，因为$123 - 106 = 17$。
+
+\qquad 对于$\var{Q} \leftarrow \var{Q} + \var{sub}\text{向下取}\var{d}\text{的倍数} \times \var{b}^{\var{n} - 1 - \var{i}}$，
+$\var{sub}\text{向下取}\var{d}\text{的倍数}$即为$\var{Q}$在第$\var{n} - 1 - \var{i}$位的商。我们依旧使用一个十进制下的例子。
+假设当前$\var{R} = 4478$，$\var{sub}$为最高位到第二位(从0开始计数)，即$44$，且$\var{d} = 10$，那么$\var{Q}$在第二位的商为$\var{sub}\text{整除}\var{d} = 4$。
+至于$\times \var{b}^{\var{n} - 1 - \var{i}}$这个操作，是起到将$\var{Q}$在第$\var{n} - 1 - \var{i}$位的商移动到第$\var{n} - 1 - \var{i}$位的作用。
+
+\qquad 此算法展示了如何通过迭代和模运算，将复杂的大数除法分解为一系列简单的、可在单个数胞上完成的操作。
+这正是计算机处理超出其原生字长大数的核心思想：通过合适的算法和数据结构，用多个小单元协作完成大任务。
+
+\qquad 这个算法虽然简单，但却是理解计算机如何处理大数运算的基础。
+通过将复杂问题分解为可管理的步骤，我们能够在有限的硬件资源上实现任意精度的算术运算。
+
+\qquad \textbf{任意状态数的数胞的除法和取模可以通过任意进制的长除法模拟}。
+
+\subsubsection{比较两个超出字长限制的数值}
+
+\qquad 假设$\var{WORDSIZEMAX}$是当前计算机可表示的最大地址，即一字长存储空间可表示的最大值，那么，如果要表示大于$\var{WORDSIZEMAX}$的值，就必须使用多个字长的存储空间。
+由于计算机一次只能对一字长存储空间的值进行比较(大于、小于、等于、大于等于、小于等于、不等于)，因此，对于这种过大的数值，需要使用特定算法逐位比较，其中每一位是一个一字长存储空间。
+
+\subsubsection*{算法步骤}
+
+\qquad 我们设$\mathrm{bit}(\var{x} : \mathbb{N}, \var{pos} : \mathbb{N}) \rightarrow NC_{\var{WORDSIZEMAX} + 1}$输入一个任意大小的数值$\var{x}$(可能使用多个字长的存储空间，这里用自然数表示)，输出$\var{x}$在第$\var{pos}$位的数值(从$0$开始计数)。
+其等价数学表达式为：
+\[\mathrm{bit}(\var{x} : \mathbb{N}, \var{pos} : \mathbb{N}) \rightarrow NC_{\var{WORDSIZEMAX} + 1} = NC_{\var{WORDSIZEMAX} + 1}\left(\frac{\var{x}}{\var{b}^{\var{pos}}} \bmod \var{b}\right)\]
+其中$\var{b}$为计算机进制。
+
+\qquad 设$\mathrm{length}(\var{x} : \mathbb{N}) \rightarrow \mathbb{N}$输入一个任意大小的数值$\var{x}$，输出$\var{x}$的有效位数。
+其等价数学表达式为：
+\[\mathrm{length}(\var{x} : \mathbb{N}) \rightarrow \mathbb{N} = \begin{cases}
+    1, \text{如果}\var{x} = 0 \\
+    \log_{\var{b}}(\var{x}) + 1, \text{否则} \\
+\end{cases}\]
+其中$\var{b}$为计算机进制。
+
+\qquad 设要比较的两个数值为$\var{A} : \mathbb{N}$和$\var{B} : \mathbb{N}$。具体的算法步骤如下：
+\begin{align*}
+    &\text{如果} \; \mathrm{length}(A) < \mathrm{length}(B) \; \text{则输出}\var{A}\text{小于}\var{B} \\
+    &\text{如果} \; \mathrm{length}(A) > \mathrm{length}(B) \; \text{则输出}\var{A}\text{大于}\var{B} \\
+    &\text{否则} \\
+    &\qquad \var{i} : \mathbb{Z} \leftarrow \mathrm{length}(A)-1 \quad \blacksquare\text{此时}\mathrm{length}(A) = \mathrm{length}(B) \\
+    &\qquad \text{当} \; \var{i} \ge 0 \; \text{则} \\
+    &\qquad \qquad \text{如果} \; \mathrm{bit}(\var{A}, \var{i}) < \mathrm{bit}(\var{B}, \var{i}) \; \text{则输出}\var{A}\text{小于}\var{B} \\
+    &\qquad \qquad \text{如果} \; \mathrm{bit}(\var{A}, \var{i}) > \mathrm{bit}(\var{B}, \var{i}) \; \text{则输出}\var{A}\text{大于}\var{B} \\
+    &\qquad \qquad \var{i} \leftarrow \var{i} - 1 \\
+    &\qquad \text{输出}\var{A}\text{等于}\var{B} \\
+\end{align*}
+
+\qquad 这个算法的核心思想是，有效位相对更长的数值更大，有效位一样长时，高位的数字相对大就大，高位的数字相对小就小。
+
+\subsubsection{任意进制的竖式加法}
+
+\qquad 竖式加法的核心思想与十进制竖式加法完全相同：将两个数的各位数字对齐，从最低位(最右边)开始逐位相加，并将产生的进位传递到更高位。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\qquad 考虑两个自然数$\var{A}$和$\var{B}$，它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{b}_{\var{i}} \times \var{b}^{\var{i}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}} < \var{b}, 0 \le \var{b}_{\var{i}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的和$\var{S} = \var{A} + \var{B}$，并同样用进制$\var{b}$表示结果：
+\[\var{S} = (\var{s}_{\var{k}-1}\var{s}_{\var{k}-2}\dots\var{s}_1\var{s}_0)_{\var{b}}\]
+其中，$\var{k} = \max(\var{m}, \var{n}) + 1$(考虑最高位可能的进位)。
+
+\subsubsection*{算法步骤}
+
+\begin{align*}
+    &\var{carry} \leftarrow 0 \quad \blacksquare\text{存储进位} \\
+    &\var{i} \leftarrow 0 \\
+    &\blacksquare\text{逐位相加} \\
+    &\text{当} \; \var{i} < \var{k} \; \text{则} \\
+    &\qquad \blacksquare\text{获取当前位的数字(若该位不存在则视为0)} \\
+    &\qquad \var{digitA} \leftarrow \begin{cases}
+    &\var{a}_{\var{i}}, \text{如果} \; \var{i} < \var{m} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \var{digitB} \leftarrow \begin{cases}
+    &\var{b}_{\var{i}}, \text{如果} \; \var{i} < \var{n} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \blacksquare\text{计算当前位的和(包括低位来的进位)} \\
+    &\qquad \var{sum\_temp} \leftarrow \var{digitA} + \var{digitB} + \var{carry} \\
+    &\qquad \blacksquare\text{计算当前结果位的值和新进位} \\
+    &\qquad \var{s}_{\var{i}} \leftarrow \var{sum\_temp} \bmod \var{b} \\
+    &\qquad \var{carry} \leftarrow \lfloor \frac{\var{sum\_temp}}{\var{b}} \rfloor \quad \blacksquare\lfloor\var{x}\rfloor\text{指对}\var{x}\text{向下取整} \\
+    &\qquad \var{i} \leftarrow \var{i} + 1 \\
+    &\text{得到最终结果}\var{S}, \text{其数值等于}\var{A} + \var{B} \\
+\end{align*}
+
+\textbf{任意状态数的数胞的加法可通过任意进制的竖式加法配合限制在状态数内的手段模拟}。
+
+\subsubsection{任意进制的竖式减法}
+
+\qquad 竖式减法的核心思想与十进制竖式减法完全相同：将两个数的各位数字对齐，从最低位(最右边)开始逐位相减，并在需要时向高位借位。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\qquad 考虑两个自然数$\var{A}$和$\var{B}$，且$\var{A} \ge \var{B}$(确保结果非负)。它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{n}-1}\var{b}_{\var{i}} \times \var{b}^{\var{i}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}} < \var{b}, 0 \le \var{b}_{\var{i}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的差$\var{D} = \var{A} - \var{B}$，并同样用进制$\var{b}$表示结果：
+\[\var{D} = (\var{d}_{\var{k}-1}\var{d}_{\var{k}-2}\dots\var{d}_1\var{d}_0)_{\var{b}}\]
+其中，$\var{k} \le \max(\var{m}, \var{n})$(结果的位数可能小于原数的位数)。
+
+\subsubsection*{算法步骤}
+
+\begin{align*}
+    &\var{borrow} \leftarrow 0 \quad \blacksquare\text{存储借位} \\
+    &\var{i} \leftarrow 0 \\
+    &\blacksquare\text{逐位相减} \\
+    &\text{当} \; \var{i} < \max(\var{m}, \var{n}) - 1 \; \text{则} \\
+    &\qquad \blacksquare\text{获取当前位的数字(若该位不存在则视为0)} \\
+    &\qquad \var{digitA} \leftarrow \begin{cases}
+    &\var{a}_{\var{i}}, \text{如果} \; \var{i} < \var{m} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \var{digitB} \leftarrow \begin{cases}
+    &\var{b}_{\var{i}}, \text{如果} \; \var{i} < \var{n} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \blacksquare\text{计算当前位的差(包括低位来的借位)} \\
+    &\qquad \var{diff\_temp} \leftarrow \var{digitA} - \var{digitB} - \var{borrow} \\
+    &\qquad \blacksquare\text{计算当前结果位的值和新借位} \\
+    &\qquad \var{d}_{\var{i}} \leftarrow \var{diff\_temp} \bmod \var{b} \\
+    &\qquad \var{borrow} \leftarrow \text{如果} \; \var{diff\_temp} < 0 \; \text{则为} 1 \text{否则为} 0 \\
+    &\qquad \var{i} \leftarrow \var{i} + 1 \\
+    &\text{得到最终结果}\var{D}, \text{其数值等于}\var{A} - \var{B} \\
+\end{align*}
+
+\textbf{任意状态数的数胞的减法可通过任意进制的竖式减法配合限制在状态数内的手段模拟}。
+
+\subsubsection{任意进制的竖式乘法}
+
+\qquad 竖式乘法的核心思想与十进制竖式乘法相同：将一个乘数的每一位与另一个乘数的每一位相乘，然后将结果按位对齐并相加。此方法可以自然地推广到任意进制$\var{b}$($\var{b} \ge 2$)。
+
+\qquad 考虑两个自然数$\var{A}$和$\var{B}$，它们在进制$\var{b}$下的表示分别为：
+\begin{align*}
+    \var{A} &= (\var{a}_{\var{m}-1}\var{a}_{\var{m}-2}\dots\var{a}_1\var{a}_0)_{\var{b}} = \sum_{\var{i}=0}^{\var{m}-1}\var{a}_{\var{i}} \times \var{b}^{\var{i}} \\
+    \var{B} &= (\var{b}_{\var{n}-1}\var{b}_{\var{n}-2}\dots\var{b}_1\var{b}_0)_{\var{b}} = \sum_{\var{j}=0}^{\var{n}-1}\var{b}_{\var{j}} \times \var{b}^{\var{j}}
+\end{align*}
+其中，$0 \le \var{a}_{\var{i}} < \var{b}, 0 \le \var{b}_{\var{i}} < \var{b}$。
+
+\qquad 我们的目标是计算它们的乘积$\var{P} = \var{A} \times \var{B}$，并同样用进制$\var{b}$表示结果：
+\[\var{P} = (\var{p}_{\var{k}-1}\var{p}_{\var{k}-2}\dots\var{p}_1\var{p}_0)_{\var{b}}\]
+其中，$\var{k} \le \var{m} + \var{n}$(乘积的位数最多为两个乘数位数之和)。
+
+\subsubsection*{算法步骤}
+
+\begin{align*}
+    &\var{carry} \leftarrow 0 \quad \blacksquare\text{存储进位} \\
+    &\var{i} \leftarrow 0 \\
+    &\blacksquare\text{逐位相乘} \\
+    &\text{设}\var{T} = (\var{t}_{\var{k}-1}\var{t}_{\var{k}-2}\dots\var{t}_1\var{t}_0)_{\var{b}}, \var{T} \leftarrow 0 \quad \blacksquare\text{存储临时中间结果} \\
+    &\text{当} \; \var{i} < \var{n} \; \text{则} \\
+    &\qquad \blacksquare\text{获取}\var{B}\text{当前位的数字(若该位不存在则视为0)} \\
+    &\qquad \var{digitB} \leftarrow \begin{cases}
+    &\var{b}_{\var{i}}, \text{如果} \; \var{i} < \var{n} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \var{j} \leftarrow 0 \\
+    &\qquad \text{当} \; \var{j} < \var{m} \; \text{则} \\
+    &\qquad \qquad \blacksquare\text{获取}\var{A}\text{当前位的数字(若该位不存在则视为0)} \\
+    &\qquad \qquad \var{digitA} \leftarrow \begin{cases}
+    &\var{a}_{\var{j}}, \text{如果} \; \var{j} < \var{m} \\
+    &0, \text{否则} \\
+    \end{cases} \\
+    &\qquad \qquad \blacksquare\text{计算乘积(包括低位来的进位)} \\
+    &\qquad \qquad \var{prod\_temp} \leftarrow \var{digitA} \times \var{digitB} + \var{carry} \\
+    &\qquad \qquad \blacksquare\text{计算当前临时位的值和新进位} \\
+    &\qquad \qquad \var{t}_{\var{i} + \var{j}} \leftarrow \var{t}_{\var{i} + \var{j}} + \var{prod\_temp} \bmod \var{b} \\
+    &\qquad \qquad \var{carry} \leftarrow \lfloor \frac{\var{prod\_temp}}{\var{b}} \rfloor \quad \blacksquare\lfloor\var{x}\rfloor\text{指对}\var{x}\text{向下取整} \\
+    &\qquad \qquad \var{j} \leftarrow \var{j} + 1 \\
+    &\qquad \blacksquare\text{如果最后一次乘法依然产生进位，将其附加在专门为进位预留的最后一位上}\\
+    &\qquad \text{如果} \; \var{carry} > 0 \; \text{则} \; \var{t}_{\var{i} + \var{j}} \leftarrow \var{carry}\\
+    &\qquad \var{i} \leftarrow \var{i} + 1 \\
+    &\var{P} \leftarrow \var{T} \\
+    &\text{得到最终结果}\var{P}, \text{其数值等于}\var{A} \times \var{B} \\
+\end{align*}
+
+\textbf{任意状态数的数胞的乘法可通过任意进制的竖式乘法配合限制在状态数内的手段模拟}。
+
+\qquad 需要注意的是，竖式乘法的时间复杂度为$O(\var{n}^2)$。对于非常大的数，可以使用更高效的算法来优化性能，但竖式乘法作为最基础和最直观的算法，仍然是理解乘法原理的重要工具。
 
 \end{document}
