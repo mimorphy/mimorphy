@@ -1,0 +1,167 @@
+#ifndef TEST_BUILDIND_CASES
+#define TEST_BUILDIND_CASES
+
+#include <basic>
+#include <fixed-length-string>
+#include <runtime-exception>
+#include <state-transition>
+#include <build-regular-table>
+#include <string>
+#include <iostream>
+
+const vector<str> building_cases = {
+    fixed_length("abcd"), // 用于测试基础连接运算是否正常
+    fixed_length("ab\\ε\\·cd"), // 用于测试空字符串和任意字符能否正常连接
+    fixed_length("ab\\(cd\\)ef"), // 用于测试括号作用域能否正常连接
+    fixed_length("ab\\|cd"), // 用于测试顶层或运算是否正常
+    fixed_length("@\\(ab\\|cd\\)\\(12\\|34\\)!"), // 用于测试或运算的连接是否正常
+    fixed_length("@\\(ab\\|\\(cd\\|ef\\)\\)"), // 用于测试嵌套的或运算是否正常
+    fixed_length("abcd\\|\\ε"), // 用于测试或运算和空字符串组合导致的贯穿路径是否生效
+    fixed_length("abc\\*d"), // 用于测试修饰字符的闭包运算的连接是否正常
+    fixed_length("ab\\(cd\\)\\*\\|\\(ef\\)\\*"), // 用于测试修饰作用域的闭包运算和或运算的组合
+    fixed_length("\\(\\ε\\|ab\\)cd"), // 用于测试或运算和空字符串组合且空字符串前置的行为
+};
+
+const vector<regular_table> expected_building_cases = {
+    {
+        state_transition(1),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(1),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(0, state_transition_type::ANY),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(1),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition('e', state_transition_type::DEFAULT),
+        state_transition('f', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(2),
+        state_transition(5),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(1),
+        state_transition('@', state_transition_type::DEFAULT),
+        state_transition(4),
+        state_transition(8),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(12),
+        state_transition(15),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(12),
+        state_transition(15),
+        state_transition('1', state_transition_type::DEFAULT),
+        state_transition('2', state_transition_type::DEFAULT),
+        state_transition(17),
+        state_transition('3', state_transition_type::DEFAULT),
+        state_transition('4', state_transition_type::DEFAULT),
+        state_transition('!', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(1),
+        state_transition('@', state_transition_type::DEFAULT),
+        state_transition(5),
+        state_transition(8),
+        state_transition(11),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max),
+        state_transition('e', state_transition_type::DEFAULT),
+        state_transition('f', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(2),
+        state_transition(sizevalue_max),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(1),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(5),
+        state_transition(8),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition(5),
+        state_transition(8),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(3),
+        state_transition(11),
+        state_transition(sizevalue_max),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition(7),
+        state_transition(sizevalue_max),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(7),
+        state_transition(sizevalue_max),
+        state_transition('e', state_transition_type::DEFAULT),
+        state_transition('f', state_transition_type::DEFAULT),
+        state_transition(11),
+        state_transition(sizevalue_max)
+    },
+    {
+        state_transition(2),
+        state_transition(4),
+        state_transition('a', state_transition_type::DEFAULT),
+        state_transition('b', state_transition_type::DEFAULT),
+        state_transition('c', state_transition_type::DEFAULT),
+        state_transition('d', state_transition_type::DEFAULT),
+        state_transition(sizevalue_max),
+    }
+};
+
+str test_building_cases()
+{
+    for (sizevalue i = 0; i < building_cases.size(); ++i) {
+        auto table = build_regular_table(building_cases[i], functional_operations, INDEX_OF_MAIN_EXCEPTIONS);
+        if (length_of_exception_pool(INDEX_OF_MAIN_EXCEPTIONS) != 0) {
+            for (sizevalue j = 0; j < length_of_exception_pool(INDEX_OF_MAIN_EXCEPTIONS); ++j) {
+                std::cout << "第" + std::to_string(i + 1) + "个测试用例产生了异常\"" + information_of_exception_pool_by_index(INDEX_OF_MAIN_EXCEPTIONS, j) + "\"" << std::endl;
+            }
+            clear_excpetion_pool(INDEX_OF_MAIN_EXCEPTIONS);
+            break;
+        }
+        if (table != expected_building_cases[i]) {
+            return fixed_length("第") + fixed_length(std::to_string(i + 1)) + fixed_length("个测试用例\"") + building_cases[i] + fixed_length("\"与预期不符");
+        }
+    }
+    return fixed_length("所有构建测试示例与预期相符！");
+}
+
+#endif

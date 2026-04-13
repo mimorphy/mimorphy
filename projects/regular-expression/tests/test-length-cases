@@ -1,0 +1,59 @@
+#ifndef TEST_LENGTH_CASES
+#define TEST_LENGTH_CASES
+
+#include <basic>
+#include <exception>
+#include <fixed-length-string>
+#include <runtime-exception>
+#include <state-transition>
+#include <build-regular-table>
+#include <compute-length>
+#include <string>
+#include <stdexcept>
+#include <iostream>
+
+vector<expression_information> length_cases = {
+    build_expression_information(fixed_length("abcd"), functional_operations, INDEX_OF_MAIN_EXCEPTIONS),
+    build_expression_information(fixed_length("a\\|bcd"), functional_operations, INDEX_OF_MAIN_EXCEPTIONS),
+    build_expression_information(fixed_length("abcd\\|\\ε"), functional_operations, INDEX_OF_MAIN_EXCEPTIONS),
+    build_expression_information(fixed_length("abc\\*d"), functional_operations, INDEX_OF_MAIN_EXCEPTIONS),
+    build_expression_information(fixed_length("@\\(abc\\|d\\)\\(\\ε\\|34\\)!"), functional_operations, INDEX_OF_MAIN_EXCEPTIONS)
+};
+
+const vector<vector<sizevalue>> expected_length_cases = {
+    {
+        4
+    },
+    {
+        1,3
+    },
+    {
+        0,4
+    },
+    {
+        
+    },
+    {
+        3,5,7
+    }
+};
+
+str test_length_cases()
+{
+    for (sizevalue i = 0; i < length_cases.size(); ++i) {
+        vector<sizevalue> length_array = compute_length_of_expression_information(length_cases[i], INDEX_OF_MAIN_EXCEPTIONS);
+        if (length_of_exception_pool(INDEX_OF_MAIN_EXCEPTIONS) != 0) {
+            for (sizevalue j = 0; j < length_of_exception_pool(INDEX_OF_MAIN_EXCEPTIONS); ++j) {
+                std::cout << "第" + std::to_string(i + 1) + "个测试用例产生了异常\"" + information_of_exception_pool_by_index(INDEX_OF_MAIN_EXCEPTIONS, j) + "\"" << std::endl;
+            }
+            clear_excpetion_pool(INDEX_OF_MAIN_EXCEPTIONS);
+            continue;
+        }
+        if (length_array != expected_length_cases[i]) {
+            return fixed_length("第") + fixed_length(std::to_string(i + 1)) + fixed_length("个测试用例与预期不符");
+        }
+    }
+    return fixed_length("所有长度测试示例与预期相符！");
+}
+
+#endif

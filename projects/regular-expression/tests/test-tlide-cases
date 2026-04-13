@@ -1,0 +1,190 @@
+#ifndef TEST_TLIDE_CASES
+#define TEST_TLIDE_CASES
+
+#include <basic>
+#include <fixed-length-string>
+#include <state-transition>
+
+const vector<expression_information> tlide_cases = {
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::DEFAULT)
+        },
+        { 3 },
+        { 0 },
+        {},
+        false
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(0),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::DEFAULT)
+        },
+        { 1, 4 },
+        { 0, 3 },
+        { {} },
+        false
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(0),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::DEFAULT)
+        },
+        { 1, 6 },
+        { 0, 3 },
+        { {} },
+        true
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::NEGATION),
+            state_transition(0),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(1),
+            state_transition(STR("b")[0], state_transition_type::NEGATION),
+            state_transition(2),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(3),
+            state_transition(STR("c")[0], state_transition_type::NEGATION),
+            state_transition(4),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::NEGATION),
+            state_transition(5),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(0, state_transition_type::ANY),
+        },
+        { 12, 15 },
+        { 0, 2 },
+        {
+            { state_transition(13) },
+            { state_transition(4), state_transition(6) },
+            { state_transition(14) },
+            { state_transition(8), state_transition(10) },
+            { state_transition(15) },
+            {}
+        },
+        false
+    }
+};
+
+const vector<expression_information> expected_tlide_cases = {
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::NEGATION),
+            state_transition(0),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(1),
+            state_transition(STR("b")[0], state_transition_type::NEGATION),
+            state_transition(2),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(3),
+            state_transition(STR("c")[0], state_transition_type::NEGATION),
+            state_transition(4),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::NEGATION),
+            state_transition(5),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(0, state_transition_type::ANY)
+        },
+        { 12, 15 },
+        { 0, 2 },
+        {
+            { state_transition(13) },
+            { state_transition(4), state_transition(6) },
+            { state_transition(14) },
+            { state_transition(8), state_transition(10) },
+            { state_transition(15) },
+            {}
+        },
+        false
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::NEGATION_INTERSECTION),
+            state_transition(STR("c")[0], state_transition_type::NEGATION),
+            state_transition(0),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::NEGATION),
+            state_transition(1),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::NEGATION),
+            state_transition(2),
+            state_transition(0, state_transition_type::ANY)
+        },
+        { 4, 7, 9 },
+        { 0, 3, 6 },
+        {
+            { state_transition(9) },
+            {},
+            {}
+        },
+        false
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::NEGATION),
+            state_transition(0),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::NEGATION),
+            state_transition(1),
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(2),
+            state_transition(STR("b")[0], state_transition_type::NEGATION),
+            state_transition(3),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(4),
+            state_transition(STR("c")[0], state_transition_type::NEGATION),
+            state_transition(5),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::NEGATION),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(6),
+            state_transition(0, state_transition_type::ANY),
+            state_transition(0, state_transition_type::ANY)
+        },
+        { 3, 7, 9, 14, 18 },
+        { 0, 2, 5 },
+        {
+            { state_transition(15) },
+            {},
+            { state_transition(7), state_transition(9) },
+            { state_transition(17) },
+            { state_transition(11), state_transition(13) },
+            { state_transition(18) },
+            {}
+        },
+        true
+    },
+    {
+        {
+            state_transition(STR("a")[0], state_transition_type::DEFAULT),
+            state_transition(STR("b")[0], state_transition_type::DEFAULT),
+            state_transition(STR("c")[0], state_transition_type::DEFAULT),
+            state_transition(STR("d")[0], state_transition_type::DEFAULT)
+        },
+        { 3 },
+        { 0 },
+        {},
+        false
+    }
+};
+
+str test_tlide_cases()
+{
+    
+}
+
+#endif

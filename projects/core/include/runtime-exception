@@ -6,12 +6,24 @@
 
 using std::exception;
 
+constexpr sizevalue INDEX_OF_MAIN_EXCEPTIONS = 0;
+
 static byte_array get_current_time();
 
 void runtime_assert(bool condition, byte_array information);
 
-void runtime_assert(bool condition, const char* information);
+EXPORT_API void runtime_assert(bool condition, const char* information, sizevalue index);
 
 void link_error(exception& e, byte_array information);
+
+EXPORT_API sizevalue register_exception_pool();
+
+EXPORT_API void unregister_exception_pool(sizevalue index);
+
+EXPORT_API sizevalue length_of_exception_pool(sizevalue index);
+
+EXPORT_API const char* information_of_exception_pool_by_index(sizevalue index_of_pool, sizevalue index_of_information);
+
+EXPORT_API void clear_excpetion_pool(sizevalue index);
 
 #endif

@@ -1,0 +1,15 @@
+#ifndef COMPUTE_LENGTH
+#define COMPUTE_LENGTH
+
+#include <basic>
+#include <state-transition>
+#include <vector>
+
+using std::vector;
+
+// 逻辑规范：
+// 前置条件：information 有效且无环
+// 后置条件：输出 information 的所有可能长度
+vector<sizevalue> compute_length_of_expression_information(expression_information& information, sizevalue index_of_exception_pool);
+
+#endif

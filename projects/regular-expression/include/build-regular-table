@@ -1,0 +1,99 @@
+#ifndef BUILD_REGULAR_TABLE
+#define BUILD_REGULAR_TABLE
+
+#include <basic>
+#include <state-transition>
+#include <fixed-length-string>
+#include <span>
+
+using std::span;
+
+expression_information nothing(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information epsilon(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information center_dot(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information left_bracket(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information right_bracket(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information alternation(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information kleene_star(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information tlide(expression_with_operation ewp, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+
+namespace API
+{
+    EXPORT_API API::expression_information* nothing(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：无
+    // 后置条件：输出 'ε' 对应的 expression_information
+    EXPORT_API API::expression_information* epsilon(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：无
+    // 后置条件：输出 '·' 对应的 expression_information
+    EXPORT_API API::expression_information* center_dot(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出 "(expr)" 中 expr 的 expression_information
+    EXPORT_API API::expression_information* left_bracket(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    EXPORT_API API::expression_information* right_bracket(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出 "left|right" 对应的 expression_information
+    EXPORT_API API::expression_information* alternation(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出 expr* 对应的 expression_information
+    EXPORT_API API::expression_information* kleene_star(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出 ~expr 对应的 expression_information
+    EXPORT_API API::expression_information* tlide(address pointer_of_expression, sizevalue length_of_expression, sizevalue index_of_operation, sizevalue operation_id, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+}
+
+// 默认的功能操作数组
+inline vector<functional_operation> functional_operations = {
+    { STR("ε")[0], reinterpret_cast<address>(API::epsilon), operation_type::DEFAULT },
+    { STR("·")[0], reinterpret_cast<address>(API::center_dot), operation_type::DEFAULT },
+    { STR("(")[0], reinterpret_cast<address>(API::left_bracket), operation_type::PREFIX },
+    { STR(")")[0], reinterpret_cast<address>(API::right_bracket), operation_type::POSTFIX },
+    { STR("|")[0], reinterpret_cast<address>(API::alternation), operation_type::INFIX },
+    { STR("*")[0], reinterpret_cast<address>(API::kleene_star), operation_type::POSTFIX },
+    { STR("~")[0], reinterpret_cast<address>(API::tlide), operation_type::PREFIX }
+};
+
+regular_table build_regular_table(str_view expression, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+expression_information build_expression_information(str_view expression, span<functional_operation> functional_operations, sizevalue index_of_exception_pool);
+
+namespace API
+{
+    // 默认的功能操作数组的地址
+    EXPORT_API inline address pointer_of_functional_operations = reinterpret_cast<address>(functional_operations.data());
+    // 默认的功能操作数组的长度
+    EXPORT_API inline sizevalue length_of_functional_operations = functional_operations.size();
+
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出对应的自动机
+    EXPORT_API API::regular_table* build_regular_table(address pointer_of_expression, sizevalue length_of_expression, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：参数有效
+    // 后置条件：输出对应的 expression_information
+    EXPORT_API API::expression_information* build_expression_information(address pointer_of_expression, sizevalue length_of_expression, address pointer_of_functional_operations, sizevalue length_of_functional_operations, sizevalue index_of_exception_pool);
+    
+    // 逻辑规范：
+    // 前置条件：instance 有效
+    // 后置条件：instance 指向的 regular_table 被释放
+    EXPORT_API void release_regular_table(API::regular_table* instance);
+
+    // 逻辑规范：
+    // 前置条件：instance 有效
+    // 后置条件：instance 指向的 expression_information 被释放
+    EXPORT_API void release_expression_information(API::expression_information* instance);
+}
+
+#endif

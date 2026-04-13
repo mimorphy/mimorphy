@@ -1,0 +1,614 @@
+\documentclass[12pt,a4paper,UTF8]{ctexart}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{amsmath, amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{stmaryrd}
+
+\lstset{
+    basicstyle=\ttfamily,
+    keywordstyle=\color{blue},
+    extendedchars=false, % 关闭扩展字符支持
+    backgroundcolor=\color{gray!5},   % 浅灰色背景
+    frame=shadowbox,                  % 带阴影的边框
+    framesep=5pt,                     % 边框内边距
+    rulesepcolor=\color{gray!30},     % 边框颜色
+    rulecolor=\color{blue!60},        % 阴影颜色
+    numbers=left,                     % 行号在左侧
+    numberstyle=\color{gray},    	  % 行号样式
+    breaklines=true,                  % 自动换行
+    captionpos=b,                     % 标题位置
+    showstringspaces=false,           % 隐藏字符串中的空格
+    tabsize=2,                        % 制表符宽度
+    keywordstyle=\color{blue},        % 关键词颜色
+    commentstyle=\color{olive},       % 注释颜色
+    stringstyle=\color{red},          % 字符串颜色
+    escapeinside=``,                  % 中文兼容设置
+	keepspaces=true
+}
+
+% 定义浅灰色变量文本命令
+\definecolor{lightgray}{gray}{0.6} % 灰度值0.7(0为黑，1为白)
+
+\newcommand{\var}[1]{\textcolor{lightgray}{\mathtt{#1}}}
+
+\newcommand{\concept}[1]{\text{引用: }\textcolor{blue}{#1}}
+
+\newcommand{\func}[1]{\textcolor{red}{#1}}
+
+% 页眉页脚设置
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\setlength{\parindent}{0pt}
+\fancyhf{}
+\fancyhead[L]{拟态语言技术手册}
+\fancyhead[R]{\thepage}
+
+% 代码高亮设置
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green},
+    stringstyle=\color{red},
+    breaklines=true,
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    backgroundcolor=\color[RGB]{245,245,244}
+}
+
+% 标题样式
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% 封面
+\title{拟态语言技术手册\\{\small 正则引擎}}
+\author{之恪提案}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty} % 取消标题页的页码
+
+\pagenumbering{Roman} % 使用大写罗马数字作为前置内容的页码
+\setcounter{page}{0} % 重置页码为1
+
+\maketitle
+\clearpage
+
+\tableofcontents
+\newpage
+
+\pagenumbering{arabic} % 切换到阿拉伯数字页码
+\setcounter{page}{1} % 重置页码为1
+
+\section{基础概念}
+
+\subsection{字符与字符集}
+
+\qquad 字符本质上是一个特定的自然数数值，这个数值称为字符的编码。
+我们称所有字符的集合为字符集(或字母表)，使用符号$\Sigma$表示。
+由于字符的数量是有限的，因此有：
+\[\exists \var{CHARACTER\_MAX}, \forall \var{c} \in \Sigma, \var{c} \le \var{CHARACTER\_MAX}\]
+故我们可以使用数胞$NC_{\var{CHARACTER\_MAX}+1}$存储字符，且字符集中的所有字符的编码都可以使用这个数胞表示。
+
+\subsection{字符串}
+
+\qquad 字符是字母表中的元素，字符串是由字符组成的有限序列。
+
+\qquad 我们可以将字符串定义为字符编码的有限序列，其长度即为序列中字符的个数。更严谨地说：
+
+\qquad 设 $\Sigma$ 为给定的字符集，$\Sigma^*$ 表示由 $\Sigma$ 中字符构成的所有有限序列的集合。  
+一个字符串 $\var{s}$ 是 $\Sigma^*$ 中的一个元素，可表示为  
+\[\var{s} = c_1 c_2 \dots c_{\var{n}}, \quad c_{\var{i}} \in \Sigma\ (\var{i}=1,\dots,\var{n})\]
+其中 $\var{n} \in \mathbb{N}$ 称为字符串的长度，记为 $|\var{s}|$。  
+
+形式化地，可定义长度为 $\var{n}$ 的字符串为一个函数  
+\[\var{s} : \{1,2,\dots,\var{n}\} \to \Sigma\]  
+当 $\var{n}=0$ 时得到唯一的空串，通常记为 $\func{\varepsilon}$，并且规定 $|\func{\varepsilon}| = 0$。
+
+并且规定红色的$\func{\cdot}$可以代表任意字符。
+
+这样，$|\var{s}|$ 就是从字符串到自然数集的映射  
+\[|\cdot| : \Sigma^* \to \mathbb{N}\]
+其中$\cdot$为任意字符串
+
+\subsection{基本运算}
+
+\qquad $\Sigma^*$的子集$\var{U}$和$\var{V}$的连接(积)定义为
+\[\var{U}\var{V} = \{\alpha \beta \mid \alpha \in \var{U} \wedge \beta \in \var{V}\}\]
+
+\qquad $\var{V}$自身的$\var{n}$次积记为
+\[\var{V}^{\var{n}} = \var{V} \var{V} \cdots \var{V} (\text{其中有}\var{n}\text{个}\var{V})\]
+
+\qquad $\var{V}^0 = \func{\varepsilon}$
+
+\qquad $\var{V}\func{*}$是$\var{V}$的闭包，即
+\[\var{V}^* = \var{V}^0 \cup \var{V}^1 \cup \var{V}^2 \cup \cdots = \bigcup_{i=0}^{\infty} \var{V}^i\]
+
+\qquad $\var{U}\func{|}\var{V}$是或运算，即
+\[\var{U} \cup \var{V}\]
+
+\qquad $\func{\sim}\var{V}$是反运算，在$\var{V}$的长度大于$0$时，意为与$\var{V}$长度相同，但不完全与$\var{V}$相同的任意字符串，即
+\[\mid\func{\sim}\var{V}\mid = \mid\var{V}\mid \wedge \func{\sim}\var{V} \ne \var{V}\]
+在长度为$0$时，等价为$\func{\varepsilon}$。
+
+\subsection{非确定性有限状态自动机(NFA)}
+
+\qquad 非确定性有限状态自动机是一种用于描述正则语言的计算模型。NFA在状态转移过程中允许存在不确定性，即从一个状态读取某个字符后可能转移到多个不同的状态。
+
+\subsubsection{NFA的组成成分}
+
+\qquad NFA由五个基本成分组成：
+
+\begin{enumerate}
+    \item \textbf{状态集合}：一个有限的状态集合，通常用$\var{Q}$表示。每个状态代表自动机在识别过程中的一个特定配置。
+    
+    \item \textbf{输入字母表}：一个有限的输入符号集合，通常用$\Sigma$表示。自动机只能识别属于该字母表的字符序列。
+    
+    \item \textbf{状态转移函数}：定义状态之间转移关系的函数，通常用$\delta$表示。对于NFA，转移函数的形式为：
+    \[\delta: \var{Q} \times \Sigma \rightarrow 2^{\var{Q}}\]
+    其中$2^{\var{Q}}$表示$\var{Q}$的幂集（即$\var{Q}$的所有子集的集合）。这意味着对于每个状态和输入符号的组合，NFA可以转移到多个可能的状态。
+    
+    \item \textbf{初始状态}：自动机开始运行时的起始状态，通常用$\var{q}_0 \in \var{Q}$表示。NFA可能允许多个初始状态，此时初始状态为一个状态集合。
+    
+    \item \textbf{接受状态集合}：也称为终结状态集合，通常用$\var{F} \subseteq \var{Q}$表示。当自动机处理完整个输入字符串后，如果最终处于某个接受状态，则认为该字符串被自动机接受。
+\end{enumerate}
+
+\subsubsection{形式化定义}
+
+\qquad 一个NFA可以形式化地定义为一个五元组：
+\[\var{M} = (\var{Q}, \Sigma, \delta, \var{q}_0, \var{F})\]
+其中：
+\begin{itemize}
+    \item $\var{Q}$是有限状态集合
+    \item $\Sigma$是有限输入字母表
+    \item $\delta: \var{Q} \times \Sigma \rightarrow 2^{\var{Q}}$是状态转移函数
+    \item $\var{q}_0 \in \var{Q}$是初始状态
+    \item $\var{F} \subseteq \var{Q}$是接受状态集合
+\end{itemize}
+
+\subsubsection{工作原理}
+
+\qquad NFA通过以下方式处理输入字符串：从初始状态开始，依次读取输入字符串中的每个字符，根据转移函数确定可能转移到的状态集合。由于转移的非确定性，NFA在每一步都可能处于多个状态的叠加中。当处理完整个输入字符串后，如果当前状态集合中包含至少一个接受状态，则该输入字符串被NFA接受。
+
+\subsubsection{扩展转移函数}
+
+\qquad 为了处理整个字符串而不仅仅是单个字符，需要定义扩展转移函数$\hat{\delta}: \var{Q} \times \Sigma^* \rightarrow 2^{\var{Q}}$：
+\begin{itemize}
+    \item 对于空字符串$\func{\varepsilon}$，有$\hat{\delta}(\var{q}, \func{\varepsilon}) = \{\var{q}\}$
+    \item 对于非空字符串$\var{w} = \var{xa}$（其中$\var{x} \in \Sigma^*$, $\var{a} \in \Sigma$），有：
+    \[\hat{\delta}(\var{q}, \var{w}) = \bigcup_{\var{p} \in \hat{\delta}(\var{q}, \var{x})} \delta(\var{p}, \var{a})\]
+\end{itemize}
+
+\subsubsection{语言接受性}
+
+\qquad NFA $\var{M}$接受的语言定义为所有能够使NFA从初始状态转移到某个接受状态的字符串集合：
+\[\var{L}(\var{M}) = \{\var{w} \in \Sigma^* \mid \hat{\delta}(\var{q}_0, \var{w}) \cap \var{F} \ne \emptyset\}\]
+
+\subsubsection*{NFA的特例}
+
+\qquad 在具体的实现过程中，我们偏向于实现NFA的特例，而不是完整的NFA。
+\begin{itemize}
+    \item 状态转移函数只接受单个字符。
+    \item 初始状态只有一个。
+    \item 不建议设计从一个状态读取某个字符后可能转移到多个不同的状态的NFA，因为我们打算使用占有型量词进行匹配，相关内容之后会介绍。
+\end{itemize}
+
+\subsection{匹配规则}
+
+\subsubsection{贪婪型量词匹配}
+
+\qquad 贪婪型量词匹配是正则表达式中最基本的匹配策略。采用贪婪匹配的量词会尽可能多地匹配字符，只有在后续匹配失败时才会回溯并减少匹配的字符数量。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 最大长度匹配：优先尝试匹配尽可能多的字符
+    \item 回溯机制：当后续模式无法匹配时，会回溯并尝试较短的匹配
+    \item 默认行为：多数正则表达式引擎默认采用贪婪匹配
+\end{itemize}
+
+\textbf{示例}：对于模式$a\;\func{\cdot\;*}\;b$和字符串$"aabab"$
+\begin{itemize}
+    \item 贪婪匹配结果：$"aabab"$
+    \item 匹配过程：$\func{\cdot\;*}$首先匹配到字符串末尾，然后回溯直到找到最后一个$b$
+\end{itemize}
+
+\subsubsection{懒惰型量词匹配}
+
+\qquad 懒惰型量词匹配（也称为懒惰匹配或最小匹配）与贪婪匹配相反，它会尽可能少地匹配字符，只有在后续模式需要时才会增加匹配的字符数量。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 最小长度匹配：优先尝试匹配尽可能少的字符
+    \item 渐进扩展：当后续匹配失败时，逐步增加匹配范围
+    \item 显式指定：需要通过特定语法明确指定
+\end{itemize}
+
+\textbf{示例}：对于模式$a\;\func{\cdot\;*}\;b$和字符串$"aabab"$
+\begin{itemize}
+    \item 懒惰匹配结果：$"aab"$
+    \item 匹配过程：$\func{\cdot\;*}$在遇到第一个$b$时就停止匹配
+\end{itemize}
+
+\subsubsection{占有型量词匹配}
+
+\qquad 占有型量词匹配类似于贪婪匹配，但一旦匹配成功就不会进行回溯，即使后续模式匹配失败也不会释放已匹配的字符。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 无回溯匹配：匹配成功后不会释放已占有的字符
+    \item 性能优化：避免回溯过程，提高匹配效率
+    \item 严格匹配：一旦匹配失败就立即返回失败结果
+\end{itemize}
+
+\textbf{示例}：对于模式$a\;\func{\cdot\;*}\;b$和字符串$"aabab"$
+\begin{itemize}
+    \item 占有匹配结果：匹配失败
+    \item 匹配过程：$\func{\cdot\;*}$匹配所有剩余字符，不释放给后面的$b$匹配
+\end{itemize}
+
+\subsubsection{三种匹配规则对比}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{特性} & \textbf{贪婪匹配} & \textbf{懒惰匹配} & \textbf{占有匹配} \\
+\hline
+匹配原则 & 尽可能多 & 尽可能少 & 尽可能多（不回溯） \\
+\hline
+回溯行为 & 有回溯 & 有回溯 & 无回溯 \\
+\hline
+性能 & 中等 & 中等 & 较高 \\
+\hline
+适用场景 & 默认情况 & 需要精确匹配 & 性能敏感场景 \\
+\hline
+\end{tabular}
+\end{center}
+
+\qquad 这三种匹配规则为正则表达式提供了灵活的匹配策略，可以根据具体需求选择合适的匹配方式，在匹配精度和性能之间取得平衡。
+但是在拟态语言中，为了安全性和效率，我们默认只使用NFA的特例配上占有匹配。
+
+\subsection{转义字符}
+
+\subsubsection{转义字符的基本概念}
+
+\qquad 转义字符是一种特殊的字符序列，用于表示那些在正则表达式中具有特殊含义的字符的字面值，或者表示不可见的控制字符。转义字符通常以反斜杠（\textbackslash）开头，后跟一个或多个字符。
+
+\subsubsection{反斜杠的转义规则}
+
+\qquad 反斜杠在正则表达式中具有作用：\textbf{赋予普通字符特殊含义}
+
+当反斜杠置于某些普通字符之前时，会赋予其特殊的匹配功能。
+
+\textbf{示例}：
+\begin{itemize}
+    \item $\backslash\cdot$ 匹配通配符（赋予字面字符$\cdot$特殊含义）
+    \item $\backslash \text{n}$ 匹配换行符（赋予字面字符$\text{n}$特殊含义）
+\end{itemize}
+
+\subsubsection{ASCII码中的转义字符}
+
+以下是正则表达式中常用的ASCII转义字符：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{转义序列} & \textbf{ASCII值} & \textbf{含义} \\
+\hline
+\verb|\a| & 0x07 & 响铃符（BEL） \\
+\hline
+\verb|\b| & 0x08 & 退格符（BS） \\
+\hline
+\verb|\t| & 0x09 & 水平制表符（TAB） \\
+\hline
+\verb|\n| & 0x0A & 换行符（LF） \\
+\hline
+\verb|\v| & 0x0B & 垂直制表符（VT） \\
+\hline
+\verb|\f| & 0x0C & 换页符（FF） \\
+\hline
+\verb|\r| & 0x0D & 回车符（CR） \\
+\hline
+\verb|\e| & 0x1B & 转义符（ESC） \\
+\hline
+\verb|\0| & 0x00 & 空字符（NUL） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection{八进制和十六进制转义}
+
+\qquad 除了预定义的转义序列外，还可以使用数值转义：
+
+\begin{itemize}
+    \item \textbf{八进制转义}：\verb|\ddd|（1-3位八进制数字）
+    \item \textbf{十六进制转义}：\verb|\xhh|（2位十六进制数字）或\verb|\x{hhhh}|（1-4位十六进制数字）
+\end{itemize}
+
+\textbf{示例}：
+\begin{itemize}
+    \item \verb|\101| 匹配字符'A'（八进制65）
+    \item \verb|\x41| 匹配字符'A'（十六进制41）
+\end{itemize}
+
+\subsubsection{无法转义字符的处理}
+
+\qquad 当反斜杠后接的字符不属于任何预定义的转义序列，且该字符本身也不具有特殊含义时，反斜杠将被忽略，后面的字符将按原义进行匹配。
+
+\textbf{示例}：
+\begin{itemize}
+    \item \verb|\a| 匹配响铃符（有效转义）
+    \item \verb|\q| 匹配字符\verb|q|（无效转义，按原义处理）
+    \item \verb|\@| 匹配字符\verb|@|（非元字符，按原义处理）
+\end{itemize}
+
+\qquad 这种设计确保了向后兼容性，即使未来引入新的转义序列，现有的模式也不会被破坏。在实际使用中，建议只对具有特殊含义的字符进行转义，以避免混淆。
+
+\subsection{表达式中的字符标记}
+
+\qquad 首先，对正则表达式$R$中的每个字面字符和操作符(元字符)出现进行标记，使每个出现具有唯一的位置索引。
+假设正则表达式$R$由字母表$\Sigma$中的字符、特殊字符（如操作符$\func{\mid}, \func{*}, \func{(}, \func{)}$等，都使用红色标记，且都需要转义）和空表达式$\func{\varepsilon}$、通配符$\func{\cdot}$组成。
+我们只关注字面字符和特殊字符的出现。(之后的红色字符默认代表一个转移字符后继一个字面字符形成的特殊字符)
+
+\qquad 定义$P$为$R$中所有字面字符出现的集合。每个出现$p \in P$具有：
+\begin{itemize}
+    \item 字符$c(p) \in \Sigma$（即该位置对应的字面字符）。
+    \item 唯一位置索引$i(p)$（默认从左到右按从$0$开始的顺序编号，特殊字符也需要占用编号）。
+\end{itemize}
+
+例如，对于正则表达式 $R = \text{"aa\func{*}b"}$，字面字符出现为：位置0的'a'、位置1的'a'、位置2的'*'、位置3的'b'。
+因此，$P = \{p_0, p_1, p_2\}$，其中$c(p_0) = 'a', c(p_1) = 'a', c(p_2) = 'b', i(p_0) = 0, i(p_1) = 1, i(p_2) = 3$。
+
+\qquad 注意，对于反斜杠与其紧接字符形成的转义或原义组合，将其视为一个字面字符。
+反运算紧接一个普通的字面字符，将其视为一个反字面字符，是字面字符的一种特例。
+
+
+
+
+\newpage
+\section{正则结构的构建}
+
+\subsection{状态节点}
+
+\qquad 基于标记的字符出现，定义状态节点集合$Q$。每个状态节点对应一个字符出现或用于控制流程（如开始状态）。状态节点有唯一ID和类型。
+\begin{itemize}
+    \item 令$Q = \{ q_p \mid p \in P \} \cup \{ q_0 \}$，其中$q_0$是开始状态。
+    \item 每个状态节点$q_p$（对于$p \in P$）有三个成员：
+    \begin{itemize}
+        \item 转移字符：即$c(p)$，表示进入该状态时需要匹配的字符。
+        \item 状态类型：例如普通字符匹配，用于非反字面字符$c(p)$。通配符匹配。空转移，用于$\func{\varepsilon}$转移的状态。反字符匹配，用于反字面字符$c(p)$。
+        \item 连接的其他状态节点引用：即从该状态出发的转移目标列表。
+    \end{itemize}
+    \item 状态节点$q_0$是开始状态，没有转移字符（空转移）。
+\end{itemize}
+
+\subsection{构建规则}
+
+\qquad 接下来我们需要将正则表达式字面量构建成NFA，我们需要定义一些构建规则，以指导构建的过程。
+
+\qquad 对于表达式$R_1 = \func{\varepsilon}$和任意的$R_2$, $R_1 \cdot R_2 = R_2$；$R_2 \cdot R_1 = R_2$。
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+假设存在表达式$R_0$：
+\begin{itemize}
+    \item 设$q_{start}^{R_0}$为分支$R_0$的起始状态集合
+    \item 设$q_{end}^{R_0}$为分支$R_0$的结束状态集合
+\end{itemize}
+
+\qquad 对于表达式$R = aA$，其中$a$为字符，$A$为表达式，有$q_{start}^{R} = a$；对于表达式$R = Aa$，其中$a$为字符，$A$为表达式，有$q_{end}^{R} = a$。
+
+\qquad 对于非空表达式$S$，若有$R_0 = \func{(}S\func{)}$，则$q_{start}^{R_0} = q_{start}^{S}$，且$q_{end}^{R_0} = q_{end}^{S}$。
+
+\qquad 对于非空表达式$P,S$，若有$R_0 = P \cdot S$，则$\forall q_s \in q_{start}^{S}, \forall q_e \in q_{end}^{P}, \exists \delta(q_e, c(q_s)) = q_s$。
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+\qquad 对于或运算$R_1 \func{|} R_2 \func{|} \cdots \func{|} R_n$，定义以下构建规则：
+
+状态定义：
+\begin{itemize}
+    \item 对于表达式$R = R_1 \func{|} R_2 \func{|} \cdots \func{|} R_n$，且$\forall i \text{ 满足 } 1 \le i \le n, \forall R_i \ne \func{\varepsilon}$，有$q_{start}^{R_i} \subseteq q_{start}^{R}$
+    \item 对于表达式$R = R_1 \func{|} R_2 \func{|} \cdots \func{|} R_n$，且$\forall i \text{ 满足 } 1 \le i \le n, \forall R_i \ne \func{\varepsilon}$，有$q_{end}^{R_i} \subseteq q_{end}^{R}$
+    \item 对于表达式$R = P \func{|} \func{\varepsilon} \func{|} S$，或者表达式$R = \func{\varepsilon} \func{|} S$，或者表达式$R = P \func{|} \func{\varepsilon}$，有
+          $((\forall q_{p}, \forall q_{R_s} \in q_{start}^{R}, \exists \delta(q_{p}, c(q_{R_s})) = q_{R_s}), (\forall q_{s}, \forall q_{R_e} \in q_{end}^{R}, \exists \delta(q_{R_e}, c(q_{s})) = q_{s}))
+          \Rightarrow (\exists \delta(q_{p}, c(q_{s})) = q_{s}).$
+    \item 对于表达式$R = R_1 \func{|} R_2 \func{|} \cdots \func{|} R_n$，如果这个或运算的作用域为表达式的顶层，设$q_0$为NFA的起始状态，则$\forall q_s \in q_{start}^{R}, \exists \delta(q_0, c(q_s)) = q_s$
+\end{itemize}
+
+\vspace{2mm}
+\hrule
+\vspace{2mm}
+
+\qquad 对于闭包运算$R_0\func{*}$，定义以下构建规则：
+
+闭包运算的转移函数定义：
+\begin{itemize}
+    \item $\func{(}\func{\varepsilon}\func{)}\func{*} = \func{\varepsilon}$，下文提及的$R_0 \ne \func{\varepsilon}$.
+    \item 对于$R = R_0\func{*}$，$q_{start}^{R} = q_{start}^{R_0}$，$q_{end}^{R} = q_{end}^{R_0}$.
+    \item $\forall q_{end}^{R_0}, \forall q_{start}^{R_0}, \exists \delta(q_{end}^{R_0}, c(q_{start}^{R_0})) = q_{start}^{R_0}.$
+    \item $((\forall q_{p}, \forall q_{R_0s} \in q_{start}^{R_0}, \exists \delta(q_{p}, c(q_{R_0s})) = q_{R_0s}), (\forall q_{s}, \forall q_{R_0e} \in q_{end}^{R_0}, \exists \delta(q_{R_0e}, c(q_{d})) =\\ q_{s}))
+    \Rightarrow (\exists \delta(q_{p}, c(q_{s})) = q_{s}).$
+\end{itemize}
+
+\subsection{状态节点的结构}
+
+\qquad 定义$\var{NUMBER\_OF\_CHARACTER}$为字母表中所有字符的种类数量。
+
+\qquad 定义$\var{WORDSIZEVALUE}$为计算机一个字长的存储空间所使用的状态数。
+
+\qquad 定义$\var{TYPEVALUE}$为状态节点的状态类型种类数量。
+
+\qquad 定义以$\var{TYPEVALUE}$为状态数的数胞在结构体中后继以$\var{NUMBER\_OF\_CHARACTER}$为状态数的数胞刚好填充完以$\var{WORDSIZEVALUE}$为状态数的数胞所占的全部存储空间。
+
+\qquad 定义结构$MST$，其第一个成员$character \in NC_{\var{NUMBER\_OF\_CHARACTER}}$，第二个成员$type \in NC_{\var{TYPEVALUE}}$，成员在存储空间中依次顺序存储。
+
+\qquad 定义结构$ST$，其第一个成员$index \in SNC_{\var{WORDSIZEVALUE}}$，第二个成员$mst \in MST$，成员在存储空间中共享存储区域。
+
+\qquad 其中，$MST$代表一个有实际字面意义的节点，它有确定的转移条件$character$和类型$type$。
+在实际实现中，我们通过$type$的取值限定来区分一个状态节点$ST$是$MST$还是一个索引$index$，但在这里没法表现区分的方法。
+区分的方法为：如果$ST$实例中$index$映射一个负数，那么这个$ST$就是一个$MST$，否则是一个索引。也就是说，$type$一旦取值，$index$就必须是负数(映射的规则为$index$的值减去$\lfloor\frac{\var{WORDSIZEVALUE}}{2}\rfloor+1$所表示的整数)。
+至于为什么能这么实现，因为计算机的单字长存储空间的状态数为$\var{WORDSIZEVALUE}$，而$ST$满足不只占一个字节的存储空间，因此，就算计算机中的存储空间全部用于存储$ST$，数量也不会超过$\var{WORDSIZEVALUE}$的一半，
+进而，当$ST$是一个$SNC$索引时，永远不会溢出为负数，那么负数的索引就可以用于表示这个$ST$是一个$MST$了。
+
+\qquad 那么为什么需要状态节点$ST$有两种分类——$MST$和索引呢？
+我们知道$MST$就是前文所说的状态节点的标准形式，转移到此状态所需要匹配的字符$character$以及状态节点的类型$type$。
+但是，如果只有$MST$，我们无法描述正则表中一个$MST$到另一个$MST$的转移路径（使用状态节点的线性数组表示正则表）。
+因此，我们需要额外的一种类型——转移节点，用于表示不在正则表中直接相邻的两个$MST$之间的转移路径（默认两个$MST$在正则表中相邻，即之间没有任何其他节点，那么它们之间存在转移路径）。
+我们规定，一个$MST$后面如果紧接一个或一连串索引节点，那么这些索引节点都修饰这个$MST$。
+综上所述，我们使用$MST$表示实际的状态，用索引节点的索引表示它所修饰的实际状态拥有哪些转移路径（索引的含义为正则表中$MST$的索引）。
+
+\subsection{虚转移节点}
+
+\qquad 由于在构建过程中，有时难以判断一个$MST$之后需要多少个索引节点，而正则表又是使用数组表示，导致难以确定节点的位置安放和索引节点的索引该如何选取。
+因此，我们使用一种策略——对于可能有多个转移节点修饰的实际节点之后，我们插入一个虚转移节点，然后维护一个额外的虚转移表数组，此时虚转移节点的索引表示对应的虚转移组的索引，表中含有多个虚转移组，虚转移组含有多个转移节点。
+实际上，虚转移节点和转移节点都是索引节点，它们的数据组成是相同的。但是它们存在于不同的构建时期，因而有不同的名称。
+虚转移节点存在于构建过程中，还未整体遍历完表达式时，用于表示多个转移节点。当遍历完成后，进行展开，基于虚转移表和特定算法，将所有虚转移节点替换为它所代表的数个转移节点，同时更新索引到正确的位置。
+在这个展开过程完成之后，我们认为正则表中的所有索引节点都是转移节点，即不存在虚转移节点了。
+
+\subsection{正则表的连接}
+
+\qquad 前文提到，正则表就是状态节点的线性数组。
+那么，当构建正则表时，不可避免的要对两部分的正则表达式形成的正则表进行连接。
+
+\subsection{编译时正则表}
+
+\qquad 由于正则表的起始节点信息和结束节点信息是不那么明显的(需要读取判断)，而连接又需要频繁地用到起始节点和结束节点的信息，因此需要一种更擅长连接的结构，当且称为\textbf{编译时正则表}。
+
+\qquad 编译时正则表由五个基本成分组成：
+
+\begin{enumerate}
+    \item \textbf{状态节点数组}：对应正则表的状态节点数组，只不过移除了开头的指向第一个节点的转移节点。
+    \item \textbf{起始表}：一个数组，包含数个指向起始节点的索引。
+    \item \textbf{结束表}：一个数组，包含数个指向结束节点的索引
+    \item \textbf{虚转移表}：一个数组的数组，虚转移表中的每个数组对应一个虚转移节点，其中每个元素共同组成这个虚转移节点展开后的形式，用于在正则表构建完成后提供展开信息，或者供连接使用。
+    \item \textbf{被贯穿标志}：一个布尔值，用于指示这个编译时正则表是否存在起始节点的前驱指向结束节点的后继的转移路径，如果存在，认为被贯穿。
+\end{enumerate}
+
+\subsection{编译时正则表的首尾相接}
+
+考虑两个编译时正则表$A, B$，算法如下：
+\begin{align*}
+    &\text{如果} \; A\text{的状态节点数组为空} \; \text{则输出}B \\
+    &\text{否则如果} \; B\text{的状态节点数组为空} \; \text{则输出}A \; \text{否则} \\
+    &\text{如果} \; A\text{的状态节点数组的最后一个节点不是虚转移节点，}\\
+    &\qquad \text{添加末尾的虚转移节点，并更新}A\text{的虚转移表} \\
+    &\var{B\text{偏移}} \leftarrow A\text{的状态节点数组的元素数量} \\
+    &\var{\text{虚转移表偏移}} \leftarrow A\text{的虚转移表的元素数量} \\
+    &\var{C} : \text{编译时正则表} \\
+    &\var{C}\text{的状态节点数组} \leftarrow A\text{的状态节点数组为首连接上}B\text{的状态节点数组为尾} \\
+    &\var{C}\text{的虚转移表} \leftarrow A\text{的虚转移表为首连接上}B\text{的虚转移表为尾} \\
+    &\var{\text{新起始表}} \leftarrow B\text{的起始表} \\
+    &\text{令}\var{\text{新起始表}}\text{的每个元素}\var{index} \leftarrow \var{index} + \var{B\text{偏移}} \\
+    &\text{根据}\var{C}\text{的状态节点数组、虚转移表、起始表和}\var{\text{新起始表}}\text{，使}\var{C}\text{的起始表中指向的所有的} \\
+    &\qquad \text{节点后的虚转移节点，其在虚转移表中包含所有指向}\var{\text{新起始表}}\text{中索引的转移节点} \\
+    &\text{遍历}\var{C}\text{的状态节点数组中索引大于等于}\var{B\text{偏移}}\text{的节点}\var{node}\text{，如果是虚转移节点，} \\
+    &\qquad \text{修正索引为其在新虚转移表中的索引：}\var{node}\text{的索引} + \var{\text{虚转移表偏移}} \\
+    &\text{遍历}\var{C}\text{的虚转移表中索引大于等于}\var{\text{虚转移表偏移}}\text{的数组}\var{arr}\text{，更新}\var{arr} \\
+    &\qquad \text{中的所有转移节点}\var{node}\text{的索引为：}\var{node}\text{的索引} + \var{B\text{偏移}} \\
+    &\text{令}\var{C}\text{的起始表} \leftarrow A\text{的起始表，令}\var{C}\text{的结束表} \leftarrow A\text{的结束表} \\
+    &\text{如果满足}A\text{被贯穿}\;\text{或者}A\text{的起始表为空，则将}B\text{的起始表衔接到}\var{C}\text{的起始表中} \\
+    &\text{如果满足}B\text{被贯穿}\;\text{，则令}\var{C}\text{的结束表赋值为}B\text{结束表，否则清空}\var{C}\text{的结束表} \\
+    &\var{\text{新结束表}} \leftarrow B\text{的结束表} \\
+    &\text{令}\var{\text{新结束表}}\text{的每个元素}\var{index} \leftarrow \var{index} + \var{B\text{偏移}} \\
+    &\text{将}\var{\text{新结束表}}\text{衔接到}\var{C}\text{的结束表的末尾} \\
+    &\text{如果} \; A, B \text{都被贯穿，则}\var{C}\text{也被贯穿} \\
+    &\text{输出}\var{C} \\
+\end{align*}
+
+\subsection{状态节点的类型}
+
+\qquad 除去前文所述的普通节点、转移节点(虚转移节点)。
+我们着重介绍其余的几种节点。
+
+\vspace{8mm}
+\textbf{空转移节点}：
+
+\qquad 空转移节点，接受一个$\func{\varepsilon}$即可进入此节点，也就是说，进入这个节点不需要匹配任何内容，即此节点的直接前驱节点可以不经过任何条件进入该节点。
+可以作为正则表中的占位节点，或者作为转移节点的目标。在正常情况下，即以此节点为转移目标非必要时，往往可以忽略此空转移节点。
+
+\vspace{8mm}
+\textbf{通配符节点}：
+
+\qquad 通配符节点，接受一个任意字符即可进入此节点，也就是说，只要待匹配的内容不为空，长度大于等于$1$，即可进入通配符节点。
+
+\vspace{8mm}
+\textbf{反字符节点}：
+
+\qquad 反字符节点，如果一个状态节点的类型是反字符节点，那么它接受一个与其转移字符不同的字符，也就是说，一个反字符节点的转移字符是$a$，那么它可以匹配$b,c,1,2,\#$等，唯独不匹配$a$。
+
+\vspace{8mm}
+\textbf{反交集节点}：
+
+\qquad 反交集节点，用于表示长度为$1$的多个反字符取交集的形式，反交集节点如果在正则表中相邻，那么它们共同表示一个长度为$1$的反字符交集，且反交集节点序列以反字符节点结尾，最后的反字符节点也包含在交集之中。
+例如，要表示$\func{\sim}\func{(}a\func{|}b\func{|}c\func{)}$，可以使用以下顺序表示：
+\[\text{反交集节点}(a) \rightarrow \text{反交集节点}(b) \rightarrow \text{反字符节点}(c)\]
+其中$\rightarrow$表示在正则表中左右相邻，$\cdots\text{节点}(a)$表示一个转移字符为$a$的某种节点。
+
+\vspace{8mm}
+\textbf{阻塞节点}：
+
+\qquad 阻塞节点，表示所在的分支不可能走通，等价于删除所在分支。如果它在一个正则表的主干上，那么这个正则表等价于$\func{\varepsilon}$。
+
+\subsection{计算有限正则表的长度}
+
+\qquad 我们将正则表中可以无限循环的路径称为环，因此闭包运算就是一种构建环的运算。一旦正则表中出现环，那么它的长度集合就有无限多个元素，即长度有无限多种可能，此时长度难以分析，因此我们只分析无环正则表的长度集合。
+
+\qquad 分析一个无环正则表的长度，可以粗略地分为以下几点步骤：
+\begin{itemize}
+    \item 枚举所有从起点到终点的简单路径(无重复节点，若出现重复节点，说明存在环)
+    \item 计算所有简单路径的长度
+    \item 将所有长度排序(可选)，存放在数组或其他数据结构中输出
+\end{itemize}
+
+\subsection{反运算修饰的正则结构}
+
+\qquad 在反运算修饰的正则结构中，需要对正则结构进行分析，再进行反运算作用后结果的生成。
+
+\qquad 关键在于，反运算修饰的正则结构中必须无环，否则可能出现长度难以判定的情况，导致正则表的结束位置不确定。
+
+\qquad 对于空字符串$\func{\varepsilon}$，$\func{\sim}\func{\varepsilon} = \func{\varepsilon}$。
+
+\qquad 对于通配符节点$\func{\cdot}$，$\func{\sim}\func{\cdot} = E$，$E$为阻塞节点。
+
+\qquad 对于顺序结构，例如表达式$R = R_1 R_2$，$\func{\sim}R = \func{\sim}R_1 \func{\cdot}^{|R_2|} \func{|} R_1\func{\sim}R_2$。
+
+\qquad 对于分支结构，例如表达式$R = R_1\func{|}R_2\cdots\func{|}R_n$，且$\forall i$满足$1 \le i \le n$，$\forall R_i \ne \func{\varepsilon}$，
+有$\func{\sim}R = \func{\sim}\func{(}s_1\func{|}s_2\func{|}\cdots\func{|}s_n\func{)}\func{\cdot}^{|R|-1} \func{|} s_1\func{\sim}S_1 \func{|} s_2\func{\sim}S_2 \func{|} \cdots \func{|} s_n\func{\sim}S_n$，
+其中$s_1,s_2,\cdots,s_n$为所有属于$q_{start}^{R_1}, q_{start}^{R_2}, \cdots, q_{start}^{R_n}$中的元素，$S_1,S_2,\cdots,S_n$是对于每个$s_i$分支中第一个字符后继的表达式。
+完成之后，对$R$进行长度分析，假设长度集合为$L$，那么$\forall l \in L$，将$\func{\sim}R$中到达长度为$l$的节点位置添加到结束表中，即可。
+
+\qquad 由于闭包运算必定产生环，因此反运算修饰的正则结构无法含有闭包运算。
+
+\vspace{8mm}
+一个可能的处理反运算的算法：
+\begin{align*}
+    &\var{\text{内容}} := \var{\text{反运算修饰的正则结构}} \\
+    &\var{\text{反内容}} \leftarrow \text{应用反运算修饰的正则结构的规则}(\var{\text{内容}}) \\
+    &\var{\text{通配内容}} \leftarrow \text{生成去头的字面节点为通配节点的正则结构}(\var{\text{反内容}}) \\
+    &\var{\text{反内容}} \leftarrow \text{分析}\var{\text{反内容}}\text{的长度，并应用更改结束表的规则，得到的新结构} \\
+    &\var{\text{打包内容}} \leftarrow \text{将后者打包到前者中}(\var{\text{反内容}}, \var{\text{通配内容}}) \\
+    &\text{输出}\var{\text{打包内容}} \\
+\end{align*}
+
+\qquad 需要注意的是，通配符节点的反运算结果为阻塞节点，此时需要删除相关的一整个分支。
+
+\qquad 以及在应用反运算修饰的正则结构的规则的过程中，转移到通配内容的虚转移节点指向的虚转移组可以是一个仅含有一个空转移节点的数组，用于专门指代这个虚转移节点的目的地是通配内容，之后在打包内容生成的过程中重定位。
+
+\end{document}

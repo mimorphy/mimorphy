@@ -1,4 +1,4 @@
-#include <fixed-string>
+#include <fixed-length-string>
 
 // 重载版本：接受 byte_array 参数
 str fixed_length(const byte_array& bstr)

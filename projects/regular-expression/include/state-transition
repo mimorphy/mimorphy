@@ -1,0 +1,146 @@
+#ifndef STATE_TRANSITION
+#define STATE_TRANSITION
+
+#include <basic>
+#include <vector>
+#include <span>
+#include <functional>
+#include <compare>
+
+using std::vector;
+using std::strong_ordering;
+
+// 状态节点的定义，包括两个成员：
+// - transition_condition (转移条件) 转移到此状态的条件。
+// - type (类型) 此状态节点的类型，参考 state_transition_type。
+class state_transition
+{
+public:
+    state_transition() = default;
+    ~state_transition() = default;
+    state_transition(character _transition_condition_, int32 _type_) : transition_condition(_transition_condition_), type(_type_) {}
+    state_transition(sizevalue index) : transition_condition((int32)index), type((int32)(index >> (sizeof(int32) * BYTE_LENGTH))) {}
+    state_transition(const state_transition& right)
+    {
+        transition_condition = right.transition_condition;
+        type = right.type;
+    }
+    void operator=(const state_transition& right)
+    {
+        transition_condition = right.transition_condition;
+        type = right.type;
+    }
+    // 如果这是一个索引节点，返回它的索引
+    sizevalue index() const
+    {
+        return *(sizevalue*)&transition_condition;
+    }
+    // 判断这是否是一个索引节点
+    bool is_transfer_transition() const
+    {
+        return *(intmax*)&transition_condition >= 0;
+    }
+    strong_ordering operator<=>(const state_transition& right) const = default;
+public:
+    character transition_condition{};
+    int32 type{};
+};
+
+struct expression_information;
+
+// 状态节点的类型，目前包括：
+// - DEFAULT (默认) 表示转移到该状态所需要匹配的字符是一个默认字符，即按原义进行匹配。
+// - ANY (通配) 表示转移到该状态所需要匹配的字符可以是字母表中的任意一个字符。
+// - NEGATION (反字符) 表示转移到该状态所需要匹配的字符是一个反字符。
+// - NEGATION_INTERSECTION (反交集) 用于和反字符节点组合，数个反交集节点结尾一个反字符节点的序列，表示对这些字符取反后取交集的长度为1的匹配形式。
+// - DEAD_END (阻塞) 表示所在的分支不可能走通，等价于删除所在分支。
+// 如果状态节点数据的最高位是0，那么这是一个转移节点，用于在普通节点之后表示这个普通节点拥有的转移路径。
+// 在自动机构建完成之前，默认都是虚转移节点，即能指代一组多个转移节点；在构建完成之后，才是转移节点。index()函数用于获取虚转移节点和转移节点的索引。
+namespace state_transition_type {
+    constexpr int32 DEFAULT = -1;
+    constexpr int32 ANY = -2;
+    constexpr int32 NEGATION = -3;
+    constexpr int32 NEGATION_INTERSECTION = -4;
+    constexpr int32 DEAD_END = -5;
+}
+
+using regular_table = vector<state_transition>;
+
+// 用于表示 functional_operation 的操作类型
+// - DEFAULT 表示与表达式其他部分无关
+// - PREFIX 表示是前缀运算(如反运算)
+// - INFIX 表示是中缀运算(如或运算)
+// - POSTFIX 表示是后缀运算(如闭包运算)
+enum class operation_type
+{
+    DEFAULT, PREFIX, INFIX, POSTFIX
+};
+
+// 用于表示编译中一个表达式及其主要运算的信息
+// - expression 表示被主要运算修饰的表达式
+// - index_of_operation 表示主要运算在 expression 中的开头索引
+// - operation_id 表示主要运算在对应 functional_operations 中的索引
+struct expression_with_operation
+{
+    str_view expression;
+    sizevalue index_of_operation;
+    sizevalue operation_id;
+};
+
+// 用于表示一个特殊操作的信息
+// - form 表示这个操作的字面形式
+// - func 表示这个操作对应的处理函数
+// - type 表示这个操作的类型
+struct functional_operation
+{
+    character form;
+    address func;
+    operation_type type;
+};
+
+// 用于表示一个编译中的表达式的信息
+// - content 表示这个表达式目前拥有的状态节点
+// - index_of_tails 表示这个表达式的结尾节点的索引
+// - index_of_heads 表示这个表达式的开头节点的索引
+// - virtual_transitions_table 表示这个表达式的虚转移表 (content 中的所有索引节点目前都是虚转移节点)
+// - exists_escape_transition 表示这个表达式是否存在贯穿的转移路径 (即开头之前到结尾之后的路径)
+struct expression_information
+{
+    regular_table content{};
+    vector<sizevalue> index_of_tails{};
+    vector<sizevalue> index_of_heads{};
+    vector<vector<state_transition>> virtual_transitions_table{};
+    bool exists_escape_transition = false;
+};
+
+namespace API
+{
+    struct regular_table
+    {
+        address pointer_of_table;
+        sizevalue length_of_table;
+    };
+
+    struct expression_with_operation
+    {
+        address pointer_of_expression;
+        sizevalue length_of_expression;
+        sizevalue index_of_operation;
+        sizevalue operation_id;
+    };
+
+    struct expression_information
+    {
+        address pointer_of_table;
+        sizevalue length_of_table;
+        address pointer_of_index_of_tails;
+        sizevalue length_of_index_of_tails;
+        address pointer_of_index_of_heads;
+        sizevalue length_of_index_of_heads;
+        address pointer_of_virtual_transitions_table;
+        sizevalue length_of_virtual_transitions_table;
+        bool exists_escape_transition = false;
+    };
+}
+
+#endif

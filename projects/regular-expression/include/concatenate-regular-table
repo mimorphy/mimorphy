@@ -1,0 +1,13 @@
+#ifndef CONCATENATE_REGULAR_TABLE
+#define CONCATENATE_REGULAR_TABLE
+
+#include <basic>
+#include <state-transition>
+
+void concatenate_regular_table(regular_table& target, regular_table& source);
+
+regular_table concatenate_new_regular_table(regular_table& finite_automaton1, regular_table& finite_automaton2);
+
+void concatenate_expression_information(expression_information& target, expression_information& source);
+
+#endif
