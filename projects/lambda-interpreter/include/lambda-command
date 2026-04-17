@@ -1,0 +1,123 @@
+#ifndef LAMBDA_COMMAND
+#define LAMBDA_COMMAND
+
+#include <basic>
+#include <vector>
+
+using std::vector;
+
+namespace lambda_command_template
+{
+    const nat8 LAMBDA_DOUBLE = 122;
+    const nat8 LAMBDA_QUADRUPLE = 123;
+    const nat8 LAMBDA_OCTUPLE = 124;
+    const nat8 VARIABLE_DOUBLE = 125;
+    const nat8 VARIABLE_QUADRUPLE = 126;
+    const nat8 VARIABLE_OCTUPLE = 127;
+    const nat8 ABSTRACTION_SINGLE = 250;
+    const nat8 ABSTRACTION_DOUBLE = 251;
+    const nat8 ABSTRACTION_QUADRUPLE = 252;
+    const nat8 ABSTRACTION_OCTUPLE = 253;
+    const nat8 APPLICATION = 254;
+    const nat8 EXTENSION = 255;
+};
+
+enum class LAMBDA_COMMAND_TYPE
+{
+    LAMBDA, VARIABLE, ABSTRACTION, APPLICATION, EXTENSION
+};
+
+// 逻辑规范：
+// 前置条件：无
+// 后置条件：根据 type 和 value 输出对应的指令字节码 (由 vector 包装)
+vector<nat8> build_lambda_command(sizevalue value, LAMBDA_COMMAND_TYPE type)
+{
+    vector<nat8> command;
+    command.reserve(9);
+    // 小端序编码辅助函数
+    auto push_le = [&](auto val) {
+        using T = decltype(val);
+        constexpr size_t size = sizeof(T);
+        
+        // 预先分配空间，避免多次扩容
+        size_t old_size = command.size();
+        command.resize(old_size + size);
+        
+        // 直接写入，避免多次 push_back
+        for (size_t i = 0; i < size; ++i) {
+            command[old_size + i] = static_cast<nat8>((val >> (i * 8)) & 0xFF);
+        }
+    };
+    
+    switch (type) {
+        case LAMBDA_COMMAND_TYPE::LAMBDA: {
+            if (value <= 121) {
+                command.push_back(static_cast<nat8>(value));
+            } 
+            else if (value <= nat16_max) {
+                command.push_back(lambda_command_template::LAMBDA_DOUBLE);
+                push_le(static_cast<nat16>(value));
+            }
+            else if (value <= nat32_max) {
+                command.push_back(lambda_command_template::LAMBDA_QUADRUPLE);
+                push_le(static_cast<nat32>(value));
+            }
+            else {
+                command.push_back(lambda_command_template::LAMBDA_OCTUPLE);
+                push_le(value);
+            }
+            break;
+        }
+        
+        case LAMBDA_COMMAND_TYPE::VARIABLE: {
+            if (value <= 121) {
+                command.push_back(static_cast<nat8>(value + 128));
+            }
+            else if (value <= nat16_max) {
+                command.push_back(lambda_command_template::VARIABLE_DOUBLE);
+                push_le(static_cast<nat16>(value));
+            }
+            else if (value <= nat32_max) {
+                command.push_back(lambda_command_template::VARIABLE_QUADRUPLE);
+                push_le(static_cast<nat32>(value));
+            }
+            else {
+                command.push_back(lambda_command_template::VARIABLE_OCTUPLE);
+                push_le(value);
+            }
+            break;
+        }
+        
+        case LAMBDA_COMMAND_TYPE::ABSTRACTION: {
+            if (value <= nat8_max) {
+                command.push_back(lambda_command_template::ABSTRACTION_SINGLE);
+                command.push_back(static_cast<nat8>(value));
+            }
+            else if (value <= nat16_max) {
+                command.push_back(lambda_command_template::ABSTRACTION_DOUBLE);
+                push_le(static_cast<nat16>(value));
+            }
+            else if (value <= nat32_max) {
+                command.push_back(lambda_command_template::ABSTRACTION_QUADRUPLE);
+                push_le(static_cast<nat32>(value));
+            }
+            else {
+                command.push_back(lambda_command_template::ABSTRACTION_OCTUPLE);
+                push_le(value);
+            }
+            break;
+        }
+        
+        case LAMBDA_COMMAND_TYPE::APPLICATION:
+            command.push_back(lambda_command_template::APPLICATION);
+            break;
+            
+        case LAMBDA_COMMAND_TYPE::EXTENSION:
+            command.push_back(lambda_command_template::EXTENSION);
+            break;
+    }
+    
+    return command;
+}
+
+#endif
